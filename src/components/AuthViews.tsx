@@ -36,6 +36,7 @@ interface AuthViewsProps {
     step: 'splash' | 'login' | 'register' | 'admin_login'
   ) => void;
   onAuthenticated: (user: AuthSessionUser, openAdminPanel?: boolean) => void;
+  appTarget?: 'user' | 'admin';
 }
 
 export const BrandLogo: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({
@@ -72,7 +73,9 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
   authStep,
   onChangeStep,
   onAuthenticated,
+  appTarget = 'user',
 }) => {
+  const isAdminMode = appTarget === 'admin' || authStep === 'admin_login';
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -154,18 +157,6 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
             >
               নতুন অ্যাকাউন্ট তৈরি করুন
             </button>
-
-            <button
-              onClick={() => {
-                setErrorMsg(null);
-                setInfoMsg(null);
-                onChangeStep('admin_login');
-              }}
-              className="w-full py-2.5 px-4 rounded-xl bg-black/25 hover:bg-black/35 border border-[#D4AF37]/35 text-[#FDE68A] font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#FBBF24]" />
-              <span>অ্যাডমিন পোর্টাল লগইন (Admin Login)</span>
-            </button>
           </div>
         </div>
 
@@ -223,7 +214,7 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
         return;
       }
 
-      if (authStep === 'admin_login' && !profile.isAuthorizedAdmin) {
+      if (isAdminMode && !profile.isAuthorizedAdmin) {
         try {
           await logoutFirebase();
         } catch {}
@@ -233,13 +224,13 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
         return;
       }
 
-      if (authStep === 'admin_login' && profile.isAuthorizedAdmin) {
+      if (isAdminMode && profile.isAuthorizedAdmin) {
         try {
           localStorage.setItem('alpo_admin_session_active', 'true');
         } catch {}
       }
 
-      onAuthenticated(profile, authStep === 'admin_login');
+      onAuthenticated(profile, isAdminMode);
     } catch (err: unknown) {
       setErrorMsg(getBengaliAuthError(err));
     } finally {
@@ -336,7 +327,7 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
           );
           return;
         }
-        if (authStep === 'admin_login' && !profile.isAuthorizedAdmin) {
+        if (isAdminMode && !profile.isAuthorizedAdmin) {
           try {
             await logoutFirebase();
           } catch {}
@@ -345,12 +336,12 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
           );
           return;
         }
-        if (authStep === 'admin_login' && profile.isAuthorizedAdmin) {
+        if (isAdminMode && profile.isAuthorizedAdmin) {
           try {
             localStorage.setItem('alpo_admin_session_active', 'true');
           } catch {}
         }
-        onAuthenticated(profile, authStep === 'admin_login');
+        onAuthenticated(profile, isAdminMode);
       }
     } catch (err: unknown) {
       setErrorMsg(getBengaliAuthError(err));
@@ -390,9 +381,13 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
       <div className="bg-gradient-to-br from-[#042F24] via-[#064E3B] to-[#047857] text-white pt-8 pb-14 px-6 rounded-b-[36px] shadow-xl relative overflow-hidden">
         <div className="max-w-md mx-auto flex flex-col items-center text-center relative z-10">
           <BrandLogo size="md" />
-          <h1 className="text-2xl font-bold mt-3">অল্প পুঁজির ব্যবসা</h1>
+          <h1 className="text-2xl font-bold mt-3">
+            {isAdminMode ? 'অল্প পুঁজির ব্যবসা Admin' : 'অল্প পুঁজির ব্যবসা'}
+          </h1>
           <p className="text-xs text-[#FDE68A] font-medium mt-0.5">
-            ছোট পুঁজি • বড় সম্ভাবনা
+            {isAdminMode
+              ? 'সিকিউর অ্যাডমিনিস্ট্রেটর অ্যাপ • alpo.pujir.bebsha.admin'
+              : 'ছোট পুঁজি • বড় সম্ভাবনা'}
           </p>
         </div>
       </div>
@@ -401,29 +396,19 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
       <div className="max-w-md w-full mx-auto px-4 -mt-8 pb-10 flex-1">
         <div className="bg-white rounded-[24px] shadow-xl shadow-emerald-950/5 border border-emerald-900/10 p-6">
           {/* Tab Switcher */}
-          {authStep === 'admin_login' ? (
+          {isAdminMode ? (
             <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-[#042F24] to-[#064E3B] text-white border border-[#D4AF37]/40 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-[#FBBF24]" />
                 <div>
                   <h3 className="text-xs font-extrabold text-[#FDE68A]">
-                    সিকিউর অ্যাডমিন লগইন পোর্টাল
+                    অল্প পুঁজির ব্যবসা Admin — অথেনটিকেশন
                   </h3>
                   <p className="text-[11px] text-emerald-100/80">
-                    শুধুমাত্র অনুমোদিত অ্যাডমিন ও মডারেটরদের জন্য
+                    শুধুমাত্র অনুমোদিত অ্যাডমিন ও মডারেটরদের জন্য (Firebase Role Verified)
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setErrorMsg(null);
-                  onChangeStep('login');
-                }}
-                className="px-2.5 py-1 rounded-lg bg-white/15 text-[11px] font-bold hover:bg-white/25 cursor-pointer"
-              >
-                ইউজার লগইন
-              </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl mb-6">
@@ -496,7 +481,7 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
             </div>
           )}
 
-          {authStep === 'login' || authStep === 'admin_login' ? (
+          {authStep === 'login' || isAdminMode ? (
             <form onSubmit={handleEmailLogin} className="space-y-4" noValidate>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -781,33 +766,16 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
             </>
           )}
 
-          {/* Dedicated Secure Admin Login Portal Switch */}
+          {/* Security badge footer — User App never exposes Admin Login */}
           <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center">
-            {authStep === 'admin_login' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setErrorMsg(null);
-                  onChangeStep('login');
-                }}
-                className="text-xs font-bold text-[#059669] hover:underline flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>← সাধারণ উদ্যোক্তা লগইনে ফিরে যান</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setErrorMsg(null);
-                  setInfoMsg(null);
-                  onChangeStep('admin_login');
-                }}
-                className="text-xs font-bold text-slate-500 hover:text-[#064E3B] flex items-center gap-1.5 cursor-pointer"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>অ্যাডমিন পোর্টাল লগইন (Admin Login)</span>
-              </button>
-            )}
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#059669]" />
+              <span>
+                {isAdminMode
+                  ? 'Firebase Authentication + Firestore Role Guard দ্বারা সুরক্ষিত'
+                  : 'অল্প পুঁজির ব্যবসা • Firebase Authentication দ্বারা সুরক্ষিত'}
+              </span>
+            </span>
           </div>
         </div>
       </div>

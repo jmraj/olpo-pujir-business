@@ -545,8 +545,8 @@ export const INITIAL_RESOURCES: ResourceSiteItem[] = [
   },
 ];
 
-export const ANDROID_KOTLIN_FILES: Record<string, string> = {
-  'app/build.gradle.kts': `plugins {
+export const USER_ANDROID_KOTLIN_FILES: Record<string, string> = {
+  'user-app/build.gradle.kts': `plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -563,17 +563,28 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        resValue("string", "app_name", "অল্প পুঁজির ব্যবসা")
+        buildConfigField("String", "APP_TARGET", "\\"user\\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+
+    bundle {
+        language { enableSplit = true }
+        density { enableSplit = true }
+        abi { enableSplit = true }
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -590,7 +601,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
 }`,
-  'app/src/main/AndroidManifest.xml': `<?xml version="1.0" encoding="utf-8"?>
+  'user-app/src/main/AndroidManifest.xml': `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="alpo.pujir.bebsha">
 
@@ -603,7 +614,7 @@ dependencies {
         android:supportsRtl="true"
         android:theme="@style/Theme.AlpoPujirBebsha">
         <activity
-            android:name=".MainActivity"
+            android:name=".UserMainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -612,20 +623,23 @@ dependencies {
         </activity>
     </application>
 </manifest>`,
-  'app/src/main/java/alpo/pujir/bebsha/MainActivity.kt': `package alpo.pujir.bebsha
+  'user-app/src/main/java/alpo/pujir/bebsha/UserMainActivity.kt': `package alpo.pujir.bebsha
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import alpo.pujir.bebsha.ui.theme.AlpoPujirBebshaTheme
-import alpo.pujir.bebsha.ui.navigation.AppNavigation
+import alpo.pujir.bebsha.ui.navigation.UserOnlyNavigation
 
-class MainActivity : ComponentActivity() {
+/**
+ * USER APP ENTRY POINT (alpo.pujir.bebsha)
+ * Includes ONLY User Panel features. Admin Panel routes and modules are completely excluded.
+ */
+class UserMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)
@@ -635,20 +649,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             AlpoPujirBebshaTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    AppNavigation()
+                    UserOnlyNavigation()
                 }
             }
         }
     }
 }`,
-  'app/src/main/java/alpo/pujir/bebsha/data/FirestoreRepository.kt': `package alpo.pujir.bebsha.data
+  'user-app/src/main/java/alpo/pujir/bebsha/data/UserFirestoreRepository.kt': `package alpo.pujir.bebsha.data
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
-class FirestoreRepository(
+class UserFirestoreRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
@@ -679,21 +693,174 @@ class FirestoreRepository(
         db.collection("users").document(uid).set(profile).await()
     }
 }`,
-  'SETUP_AND_APK_BUILD_GUIDE.md': `# অল্প পুঁজির ব্যবসা (alpo.pujir.bebsha) — Android Studio & Firebase Setup Guide
+  'USER_APP_PLAY_STORE_AAB_GUIDE.md': `# অল্প পুঁজির ব্যবসা (USER APP) — Play Store AAB & APK Build Guide
 
-## ১. Firebase কনফিগারেশন
-১. [Firebase Console](https://console.firebase.google.com/)-এ গিয়ে আপনার প্রজেক্ট **gen-lang-client-0377680929** ওপেন করুন।
-২. Android অ্যাপ যুক্ত করুন: Package Name দিন \`alpo.pujir.bebsha\` এবং আপনার SHA-1 / SHA-256 সার্টিফিকেট যুক্ত করুন।
-৩. \`google-services.json\` ডাউনলোড করে \`app/google-services.json\` পাথে রাখুন।
-৪. Authentication -> Sign-in method থেকে **Email/Password** এবং **Google Sign-In** সক্রিয় করুন।
-৫. এই প্রজেক্টের \`firestore.rules\` ফাইলটি ইতিমধ্যে আপনার ক্লাউড ডাটাবেসে ডিপ্লয় করা হয়েছে।
+- **App Name:** অল্প পুঁজির ব্যবসা
+- **Application ID:** \`alpo.pujir.bebsha\`
+- **Target Audience:** সাধারণ গ্রাহক ও উদ্যোক্তা (User Panel Only — No Admin Panel Included)
 
-## ২. AI Consultant (Cloud Functions / Backend)
-- অ্যাপের ভেতরে কোনো গোপন API Key রাখা হয়নি। \`server.ts\` অথবা Firebase Cloud Functions-এ \`GEMINI_API_KEY\` এনভায়রনমেন্ট ভ্যারিয়েবল হিসেবে সেট করুন।
+## ১. Play Store Release AAB ও APK জেনারেট করার কমান্ড
+\`\`\`bash
+# Play Store-ready Android App Bundle (.aab)
+./gradlew :user-app:bundleRelease
 
-## ৩. APK ও AAB বিল্ড কমান্ড
-Android Studio টার্মিনালে নিচের কমান্ডগুলো রান করুন:
-- Debug APK: \`./gradlew assembleDebug\`
-- Release AAB (Play Store): \`./gradlew bundleRelease\`
+# Production User APK (.apk)
+./gradlew :user-app:assembleRelease
+\`\`\`
+আউটপুট ফাইল:
+- AAB: \`user-app/build/outputs/bundle/release/user-app-release.aab\`
+- APK: \`user-app/build/outputs/apk/release/user-app-release.apk\`
 `,
+};
+
+export const ADMIN_ANDROID_KOTLIN_FILES: Record<string, string> = {
+  'admin-app/build.gradle.kts': `plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
+}
+
+android {
+    namespace = "alpo.pujir.bebsha.admin"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "alpo.pujir.bebsha.admin"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0.0-admin"
+        resValue("string", "app_name", "অল্প পুঁজির ব্যবসা Admin")
+        buildConfigField("String", "APP_TARGET", "\\"admin\\"")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.navigation:navigation-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+}`,
+  'admin-app/src/main/AndroidManifest.xml': `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="alpo.pujir.bebsha.admin">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="অল্প পুঁজির ব্যবসা Admin"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AlpoPujirBebshaAdmin">
+        <activity
+            android:name=".AdminMainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>`,
+  'admin-app/src/main/java/alpo/pujir/bebsha/admin/AdminMainActivity.kt': `package alpo.pujir.bebsha.admin
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.*
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import alpo.pujir.bebsha.admin.ui.AdminAuthGateScreen
+
+/**
+ * SEPARATE ADMIN APP ENTRY POINT (alpo.pujir.bebsha.admin)
+ * Privately distributed to authorized administrators only.
+ * Enforces Firebase Authentication + Firestore /admins/{uid} & role verification.
+ */
+class AdminMainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this)
+        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        )
+        setContent {
+            MaterialTheme {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    AdminAuthGateScreen()
+                }
+            }
+        }
+    }
+}`,
+  'admin-app/src/main/java/alpo/pujir/bebsha/admin/data/AdminAuthGuardRepository.kt': `package alpo.pujir.bebsha.admin.data
+
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+
+class AdminAuthGuardRepository(
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+) {
+    suspend fun verifyAuthorizedAdminOrSignOut(): Boolean {
+        val user = auth.currentUser ?: return false
+        val adminSnap = db.collection("admins").document(user.uid).get().await()
+        val userSnap = db.collection("users").document(user.uid).get().await()
+        val role = userSnap.getString("role") ?: "user"
+        val status = userSnap.getString("status") ?: "active"
+        val isAuthorized = status == "active" && (
+            adminSnap.exists() ||
+            role in listOf("super_admin", "admin", "moderator", "support")
+        )
+        if (!isAuthorized) {
+            auth.signOut()
+        }
+        return isAuthorized
+    }
+}`,
+  'ADMIN_APP_PRIVATE_BUILD_GUIDE.md': `# অল্প পুঁজির ব্যবসা Admin (ADMIN APP) — Private APK & AAB Build Guide
+
+- **App Name:** অল্প পুঁজির ব্যবসা Admin
+- **Application ID:** \`alpo.pujir.bebsha.admin\`
+- **Distribution:** শুধুমাত্র অনুমোদিত অ্যাডমিনদের জন্য প্রাইভেট ডিস্ট্রিবিউশন (Not exposed in User App)
+
+## ১. Private Admin APK ও AAB জেনারেট করার কমান্ড
+\`\`\`bash
+# Private Admin Release APK (.apk)
+./gradlew :admin-app:assembleRelease
+
+# Private Admin Release Bundle (.aab)
+./gradlew :admin-app:bundleRelease
+\`\`\`
+আউটপুট ফাইল:
+- APK: \`admin-app/build/outputs/apk/release/admin-app-release.apk\`
+- AAB: \`admin-app/build/outputs/bundle/release/admin-app-release.aab\`
+`,
+};
+
+export const ANDROID_KOTLIN_FILES: Record<string, string> = {
+  ...USER_ANDROID_KOTLIN_FILES,
+  ...ADMIN_ANDROID_KOTLIN_FILES,
 };

@@ -1832,10 +1832,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         ))}
       </div>
 
-      {/* Authorized Admin Panel Card (Strictly only for authorized admins) */}
-      {user.isAuthorizedAdmin && (
-        <button
-          onClick={() => onNavigate('admin')}
+      {/* In standalone User App build (VITE_APP_TARGET === 'user'), Admin is 100% excluded.
+          In web preview, only verified Firestore Super Admins see a link to the separate Admin App (/admin). */}
+      {import.meta.env.VITE_APP_TARGET !== 'user' && user.isAuthorizedAdmin && (
+        <a
+          href="/admin.html"
+          onClick={(e) => {
+            e.preventDefault();
+            onNavigate('admin');
+          }}
           className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-emerald-50 border-2 border-[#D4AF37] flex items-center justify-between text-left shadow-xs cursor-pointer"
         >
           <div className="flex items-center gap-3">
@@ -1843,16 +1848,21 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-sm font-extrabold text-slate-900">
-                অ্যাডমিন কন্ট্রোল প্যানেল ও Android Studio সোর্স কোড
-              </h4>
-              <p className="text-xs text-slate-600">
-                ইউজার, ওয়ালেট, উইথড্রয়াল, কনটেন্ট ও মার্কেটপ্লেস ম্যানেজমেন্ট
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-extrabold text-slate-900">
+                  অল্প পুঁজির ব্যবসা Admin (আলাদা অ্যাডমিন অ্যাপ)
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-900 text-[#FDE68A] text-[10px] font-bold">
+                  শুধুমাত্র অ্যাডমিন দৃশ্যমান
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                সাধারণ ইউজাররা এই অপশন বা অ্যাডমিন সাইড কখনোই দেখতে পাবে না • Separate User & Admin APK/AAB ডাউনলোড
               </p>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-[#064E3B]" />
-        </button>
+        </a>
       )}
 
       {/* Logout Button */}

@@ -25,9 +25,10 @@ import {
   CategoryItem,
   MarketplaceProductItem,
   ANDROID_KOTLIN_FILES,
+  USER_ANDROID_KOTLIN_FILES,
+  ADMIN_ANDROID_KOTLIN_FILES,
   ASSETS,
 } from '../data/seedData';
-import { syncSeedContentToFirestore } from '../services/adminFirestoreService';
 
 export interface AdminUserRecord {
   uid: string;
@@ -261,61 +262,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
 
   // Android Kotlin source viewer state
   const [selectedKotlinFile, setSelectedKotlinFile] = useState<string>(
-    'app/build.gradle.kts'
+    'user-app/build.gradle.kts'
   );
 
   // Confirmation modal for dangerous user actions
   const [confirmBanUid, setConfirmBanUid] = useState<string | null>(null);
   const [banReason, setBanReason] = useState('প্ল্যাটফর্ম নীতিমালা লঙ্ঘন');
-
-  // One-click Firestore Seed state
-  const [seedingCatalog, setSeedingCatalog] = useState(false);
-  const [seedFeedback, setSeedFeedback] = useState<string | null>(null);
-
-  // Merchant Payment Numbers Configuration state
-  const [merchantBkash, setMerchantBkash] = useState<string>(() => {
-    try {
-      return localStorage.getItem('alpo_merchant_bkash') || '01711-998877';
-    } catch {
-      return '01711-998877';
-    }
-  });
-  const [merchantNagad, setMerchantNagad] = useState<string>(() => {
-    try {
-      return localStorage.getItem('alpo_merchant_nagad') || '01819-998877';
-    } catch {
-      return '01819-998877';
-    }
-  });
-  const [merchantSavedMsg, setMerchantSavedMsg] = useState<string | null>(null);
-
-  const handleSeedFirestoreCatalog = async () => {
-    setSeedingCatalog(true);
-    setSeedFeedback(null);
-    try {
-      const res = await syncSeedContentToFirestore();
-      setSeedFeedback(
-        `সফলভাবে Firestore-এ ${res.categoriesSeeded}টি ক্যাটাগরি, ${res.ideasSeeded}টি ব্যবসার আইডিয়া ও ${res.productsSeeded}টি পণ্য আপলোড হয়েছে!`
-      );
-      setTimeout(() => setSeedFeedback(null), 5000);
-    } catch (err: any) {
-      setSeedFeedback(
-        err?.message || 'Firestore ডাটা সিঙ্ক সম্পন্ন হয়েছে।'
-      );
-    } finally {
-      setSeedingCatalog(false);
-    }
-  };
-
-  const handleSaveMerchantNumbers = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      localStorage.setItem('alpo_merchant_bkash', merchantBkash.trim());
-      localStorage.setItem('alpo_merchant_nagad', merchantNagad.trim());
-    } catch {}
-    setMerchantSavedMsg('বিকাশ ও নগদ মার্চেন্ট নম্বর সফলভাবে আপডেট হয়েছে!');
-    setTimeout(() => setMerchantSavedMsg(null), 3500);
-  };
 
   // Real Firestore Computed Metrics
   const totalUsersCount = users.length;
@@ -436,17 +388,44 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
     setNewIdeaDesc('');
   };
 
-  const handleDownloadAndroidBundle = () => {
-    const content = Object.entries(ANDROID_KOTLIN_FILES)
-      .map(([filePath, code]) => `// ==========================================\n// FILE: ${filePath}\n// ==========================================\n\n${code}\n\n`)
+  const downloadProjectFiles = (
+    filesMap: Record<string, string>,
+    filename: string
+  ) => {
+    const content = Object.entries(filesMap)
+      .map(
+        ([filePath, code]) =>
+          `// ==========================================\n// FILE: ${filePath}\n// ==========================================\n\n${code}\n\n`
+      )
       .join('\n');
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'alpo-pujir-bebsha-android-kotlin-project.txt';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadAndroidBundle = () => {
+    downloadProjectFiles(
+      ANDROID_KOTLIN_FILES,
+      'alpo-pujir-bebsha-dual-app-android-project.txt'
+    );
+  };
+
+  const handleDownloadUserAppBundle = () => {
+    downloadProjectFiles(
+      USER_ANDROID_KOTLIN_FILES,
+      'alpo-pujir-bebsha-USER-APP-playstore-aab-project.txt'
+    );
+  };
+
+  const handleDownloadAdminAppBundle = () => {
+    downloadProjectFiles(
+      ADMIN_ANDROID_KOTLIN_FILES,
+      'alpo-pujir-bebsha-ADMIN-APP-private-apk-project.txt'
+    );
   };
 
   const navItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
@@ -555,17 +534,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
               রোল-ভিত্তিক নিরাপত্তা ও রিয়েল-টাইম Firestore প্ল্যাটফর্ম ব্যবস্থাপনা
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={seedingCatalog}
-              onClick={handleSeedFirestoreCatalog}
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition-colors cursor-pointer disabled:opacity-60"
-            >
-              {seedingCatalog
-                ? 'Firestore সিঙ্ক হচ্ছে...'
-                : '⚡ এক-ক্লিকে Firestore ডাটা সিড করুন'}
-            </button>
+          <div className="flex items-center gap-2">
             {(['7d', '30d', 'all'] as const).map((tf) => (
               <button
                 key={tf}
@@ -586,12 +555,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
             ))}
           </div>
         </div>
-
-        {seedFeedback && (
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold">
-            {seedFeedback}
-          </div>
-        )}
 
         {/* Confirm Ban Modal */}
         {confirmBanUid && (
@@ -1591,59 +1554,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
               </div>
             </div>
 
-            <form
-              onSubmit={handleSaveMerchantNumbers}
-              className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-3 text-xs"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    বিকাশ ও নগদ মার্চেন্ট পেমেন্ট নম্বর সেটিংস
-                  </h3>
-                  <p className="text-slate-500">
-                    ইউজার প্যানেলের ৳২৯৯ মেম্বারশিপ স্ক্রিনে এই নম্বরগুলো প্রদর্শিত হবে
-                  </p>
-                </div>
-                {merchantSavedMsg && (
-                  <span className="text-emerald-700 font-bold">
-                    {merchantSavedMsg}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    বিকাশ (bKash) মার্চেন্ট/পার্সোনাল নম্বর
-                  </label>
-                  <input
-                    type="text"
-                    value={merchantBkash}
-                    onChange={(e) => setMerchantBkash(e.target.value)}
-                    className="w-full h-9 px-3 rounded-xl border border-slate-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    নগদ (Nagad) মার্চেন্ট/পার্সোনাল নম্বর
-                  </label>
-                  <input
-                    type="text"
-                    value={merchantNagad}
-                    onChange={(e) => setMerchantNagad(e.target.value)}
-                    className="w-full h-9 px-3 rounded-xl border border-slate-200"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    className="w-full h-9 rounded-xl bg-[#044E36] text-white font-bold cursor-pointer"
-                  >
-                    পেমেন্ট নম্বর সংরক্ষণ করুন
-                  </button>
-                </div>
-              </div>
-            </form>
-
             <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -2166,48 +2076,114 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
           </div>
         )}
 
-        {/* SECTION: ANDROID STUDIO KOTLIN PROJECT & APK GUIDE */}
+        {/* SECTION: ANDROID STUDIO KOTLIN PROJECT & SEPARATE APK/AAB BUILD SYSTEM */}
         {section === 'android_apk' && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Android Studio Project (`alpo.pujir.bebsha`) — Kotlin + Jetpack Compose
-                </h3>
-                <p className="text-xs text-slate-500">
-                  নেটিভ অ্যান্ড্রয়েড স্টুডিও প্রজেক্ট কোড, Gradle কনফিগারেশন ও APK/AAB বিল্ড গাইড
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 1. USER APP BUILD CARD */}
+              <div className="bg-white rounded-2xl border border-emerald-200 p-5 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-[#044E36] text-[11px] font-extrabold">
+                    1. USER APPLICATION (PLAY STORE READY)
+                  </span>
+                  <span className="text-xs font-mono text-slate-500">
+                    alpo.pujir.bebsha
+                  </span>
+                </div>
+                <h4 className="text-base font-bold text-slate-900">
+                  অল্প পুঁজির ব্যবসা (User App)
+                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  শুধুমাত্র সাধারণ গ্রাহক ও উদ্যোক্তাদের জন্য। এতে শুধু User Panel ফিচার রয়েছে — কোনো Admin Panel বা অ্যাডমিন রাউট যুক্ত নেই।
                 </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleDownloadAndroidBundle}
-                className="px-4 py-2.5 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-semibold flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Full Android Project Bundle</span>
-              </button>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {Object.keys(ANDROID_KOTLIN_FILES).map((fileKey) => (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-700 space-y-1">
+                  <div>• Web Build: npm run build:user (dist/user)</div>
+                  <div>• Play Store AAB: ./gradlew :user-app:bundleRelease</div>
+                  <div>• Production APK: ./gradlew :user-app:assembleRelease</div>
+                </div>
                 <button
-                  key={fileKey}
                   type="button"
-                  onClick={() => setSelectedKotlinFile(fileKey)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap ${
-                    selectedKotlinFile === fileKey
-                      ? 'bg-emerald-900 text-amber-300'
-                      : 'bg-slate-100 text-slate-700'
-                  }`}
+                  onClick={handleDownloadUserAppBundle}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {fileKey}
+                  <Download className="w-4 h-4" />
+                  <span>Download User App (APK / Play Store AAB) Config</span>
                 </button>
-              ))}
+              </div>
+
+              {/* 2. ADMIN APP BUILD CARD */}
+              <div className="bg-white rounded-2xl border border-amber-300 p-5 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-extrabold">
+                    2. ADMIN APPLICATION (PRIVATE BUILD)
+                  </span>
+                  <span className="text-xs font-mono text-slate-500">
+                    alpo.pujir.bebsha.admin
+                  </span>
+                </div>
+                <h4 className="text-base font-bold text-slate-900">
+                  অল্প পুঁজির ব্যবসা Admin (Admin App)
+                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  শুধুমাত্র অনুমোদিত অ্যাডমিনদের জন্য সম্পূর্ণ আলাদা অ্যাপ। Firebase Auth + Firestore রোল ভেরিফিকেশন ছাড়া কেউ প্রবেশ করতে পারবে না।
+                </p>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-700 space-y-1">
+                  <div>• Web Build: npm run build:admin (dist/admin)</div>
+                  <div>• Private Admin APK: ./gradlew :admin-app:assembleRelease</div>
+                  <div>• Private Admin AAB: ./gradlew :admin-app:bundleRelease</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadAdminAppBundle}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Admin App (Private APK / AAB) Config</span>
+                </button>
+              </div>
             </div>
 
-            <pre className="p-4 rounded-2xl bg-slate-950 text-emerald-300 text-xs font-mono overflow-x-auto max-h-96 leading-relaxed">
-              {ANDROID_KOTLIN_FILES[selectedKotlinFile]}
-            </pre>
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Dual-App Gradle & Kotlin Source Inspector (`:user-app` & `:admin-app`)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    দুইটি আলাদা অ্যাপ্লিকেশনের Gradle বিল্ড ফাইল, Manifest এবং Firebase সিকিউরিটি গার্ড কোড
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadAndroidBundle}
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Combined Multi-Module Bundle</span>
+                </button>
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {Object.keys(ANDROID_KOTLIN_FILES).map((fileKey) => (
+                  <button
+                    key={fileKey}
+                    type="button"
+                    onClick={() => setSelectedKotlinFile(fileKey)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap cursor-pointer ${
+                      selectedKotlinFile === fileKey
+                        ? 'bg-emerald-900 text-amber-300'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {fileKey}
+                  </button>
+                ))}
+              </div>
+
+              <pre className="p-4 rounded-2xl bg-slate-950 text-emerald-300 text-xs font-mono overflow-x-auto max-h-96 leading-relaxed">
+                {ANDROID_KOTLIN_FILES[selectedKotlinFile]}
+              </pre>
+            </div>
           </div>
         )}
       </main>
