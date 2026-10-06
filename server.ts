@@ -113,8 +113,57 @@ function createZipArchive(files: Array<{ name: string; data: Buffer }>): Buffer 
 
 function buildSelfContainedZip(target: 'user' | 'admin'): Buffer | null {
   if (cachedZips[target]) return cachedZips[target];
-  const html = buildSelfContainedHtml(target);
-  if (!html) return null;
+
+  const dir = path.join(__dirname, 'dist', target);
+  const assetsDir = path.join(dir, 'assets');
+  if (!fs.existsSync(assetsDir)) return null;
+
+  const files = fs.readdirSync(assetsDir);
+  const cssFile = files.find((f) => f.endsWith('.css'));
+  const jsFile = files.find((f) => f.endsWith('.js'));
+
+  const cssContent = cssFile
+    ? fs.readFileSync(path.join(assetsDir, cssFile), 'utf-8')
+    : '';
+  let jsContent = jsFile
+    ? fs.readFileSync(path.join(assetsDir, jsFile), 'utf-8')
+    : '';
+
+  if (jsContent) {
+    try {
+      const transformed = esbuild.transformSync(jsContent, {
+        format: 'iife',
+        target: 'es2019',
+        minify: true,
+      });
+      jsContent = transformed.code;
+    } catch (e) {
+      console.warn('esbuild transform fallback:', e);
+    }
+  }
+
+  const appTitle =
+    target === 'admin'
+      ? 'অল্প পুঁজির ব্যবসা Admin'
+      : 'অল্প পুঁজির ব্যবসা - ছোট পুঁজি • বড় সম্ভাবনা';
+
+  const cleanHtml = `<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>${appTitle}</title>
+    ${ANDROID_FILE_VIEWER_POLYFILL}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body class="bg-[#F4F8F6] text-slate-900 antialiased selection:bg-emerald-700 selection:text-white">
+    <div id="root"></div>
+    <script defer src="app.js"></script>
+  </body>
+</html>`;
 
   const manifest = JSON.stringify(
     {
@@ -134,7 +183,9 @@ function buildSelfContainedZip(target: 'user' | 'admin'): Buffer | null {
   );
 
   const zipBuf = createZipArchive([
-    { name: 'index.html', data: Buffer.from(html, 'utf-8') },
+    { name: 'index.html', data: Buffer.from(cleanHtml, 'utf-8') },
+    { name: 'app.css', data: Buffer.from(cssContent, 'utf-8') },
+    { name: 'app.js', data: Buffer.from(jsContent, 'utf-8') },
     { name: 'manifest.json', data: Buffer.from(manifest, 'utf-8') },
   ]);
   cachedZips[target] = zipBuf;
@@ -163,12 +214,12 @@ function buildSelfContainedHtml(target: 'user' | 'admin'): string | null {
     ? fs.readFileSync(path.join(assetsDir, jsFile), 'utf-8')
     : '';
 
-  // Convert ESM bundle to standard IIFE script so Android content:// / file:// viewers execute it without module CORS restrictions
   if (jsContent) {
     try {
       const transformed = esbuild.transformSync(jsContent, {
         format: 'iife',
         target: 'es2019',
+        minify: true,
       });
       jsContent = transformed.code;
     } catch (e) {
@@ -183,15 +234,20 @@ function buildSelfContainedHtml(target: 'user' | 'admin'): string | null {
   );
   html = html.replace(/<link[^>]*href="\/assets\/[^"]+"[^>]*>/g, '');
 
-  // Inject polyfill and inline CSS into <head> and standard <script> before </body>
+  const cssBase64 = Buffer.from(cssContent, 'utf-8').toString('base64');
+  const jsBase64 = Buffer.from(jsContent, 'utf-8').toString('base64');
+
   html = html.replace(
     '</head>',
-    `${ANDROID_FILE_VIEWER_POLYFILL}\n<style>\n${cssContent}\n</style>\n</head>`
+    () =>
+      `${ANDROID_FILE_VIEWER_POLYFILL}\n<link rel="stylesheet" href="data:text/css;base64,${cssBase64}" />\n</head>`
   );
 
   if (jsContent) {
-    const safeJs = jsContent.replace(/<\/script>/gi, '<\\/script>');
-    html = html.replace('</body>', `<script>\n${safeJs}\n</script>\n</body>`);
+    html = html.replace(
+      '</body>',
+      () => `<script defer src="data:text/javascript;base64,${jsBase64}"></script>\n</body>`
+    );
   }
 
   cachedBundles[target] = html;

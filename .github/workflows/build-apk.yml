@@ -119,6 +119,7 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh --version
           APK_ASSET="${{ steps.prepare_asset.outputs.apk_path }}"
@@ -141,18 +142,10 @@ jobs:
 
           RELEASE_TAG="debug-apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
           RELEASE_TITLE="Debug APK Build #${GITHUB_RUN_NUMBER}"
-          RELEASE_NOTES="Automatically generated debug APK built by GitHub Actions.
-
-          - Build Type: Automatically generated debug APK
-          - Built By: GitHub Actions
-          - GitHub Actions Run Number: ${GITHUB_RUN_NUMBER}
-          - GitHub Actions Run Attempt: ${GITHUB_RUN_ATTEMPT}
-          - Source Commit SHA: ${GITHUB_SHA}
-          - Purpose: Intended for testing only
-          - Production Status: Not a Play Store production release
-          - Signing: Signed only with a temporary debug keystore"
+          RELEASE_NOTES="Automatically generated debug APK built by GitHub Actions (Run #${GITHUB_RUN_NUMBER}, Attempt ${GITHUB_RUN_ATTEMPT}, Commit ${GITHUB_SHA}). Intended for testing only; not a Play Store production release; signed only with a temporary debug keystore."
 
           gh release create "${RELEASE_TAG}" "${APK_ASSET}" \
+            --repo "${GITHUB_REPOSITORY}" \
             --title "${RELEASE_TITLE}" \
             --notes "${RELEASE_NOTES}" \
             --target "${GITHUB_SHA}" \
@@ -162,12 +155,13 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           RELEASE_TAG="debug-apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
           RELEASE_TITLE="Debug APK Build #${GITHUB_RUN_NUMBER}"
           if [ "${{ steps.publish_release.outcome }}" = "success" ]; then
-            gh release view "${RELEASE_TAG}"
-            RELEASE_URL=$(gh release view "${RELEASE_TAG}" --json url -q .url)
+            gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}"
+            RELEASE_URL=$(gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json url -q .url)
             DIRECT_APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/app-debug.apk"
             echo "Release Tag: ${RELEASE_TAG}"
             echo "Release Title: ${RELEASE_TITLE}"
