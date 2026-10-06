@@ -136,8 +136,12 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
 
   // 1. Persistent Firebase Auth & Strict Admin Role Verification
   useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      setAuthInitializing(false);
+    }, 1500);
     const unsubscribe = initAuth(
       async (fbUser) => {
+        clearTimeout(safetyTimer);
         try {
           const profile = await verifyAndSyncUserProfile(fbUser);
           if (profile.status === 'banned' || !profile.isAuthorizedAdmin) {
@@ -158,11 +162,15 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
         }
       },
       () => {
+        clearTimeout(safetyTimer);
         setCurrentUser(null);
         setAuthInitializing(false);
       }
     );
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   // 2. Load All Real Firestore Admin Collections

@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
+  initializeAuth,
   signInWithPopup,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -9,6 +10,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   browserLocalPersistence,
+  inMemoryPersistence,
   setPersistence,
   User,
 } from 'firebase/auth';
@@ -24,12 +26,29 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
 
-// Ensure persistent login session across page reloads
-setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn('Auth persistence warning:', err);
-});
+function createSafeAuth() {
+  try {
+    const isHttp =
+      typeof window !== 'undefined' &&
+      (window.location.protocol === 'http:' ||
+        window.location.protocol === 'https:');
+    if (!isHttp) {
+      return initializeAuth(app, {
+        persistence: inMemoryPersistence,
+      });
+    }
+    const a = getAuth(app);
+    setPersistence(a, browserLocalPersistence).catch(() => {
+      setPersistence(a, inMemoryPersistence).catch(() => {});
+    });
+    return a;
+  } catch {
+    return getAuth(app);
+  }
+}
+
+export const auth = createSafeAuth();
 
 export const isGoogleSignInAvailable = Boolean(
   firebaseConfig &&

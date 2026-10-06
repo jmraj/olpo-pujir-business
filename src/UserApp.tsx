@@ -187,8 +187,12 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
   const initialAuthCheckedRef = useRef(false);
 
   useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      setAuthInitializing(false);
+    }, 1500);
     const unsubscribe = initAuth(
       async (fbUser) => {
+        clearTimeout(safetyTimer);
         if (
           initialAuthCheckedRef.current &&
           authStepRef.current === 'register'
@@ -222,12 +226,16 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
         }
       },
       () => {
+        clearTimeout(safetyTimer);
         initialAuthCheckedRef.current = true;
         setCurrentUser(null);
         setAuthInitializing(false);
       }
     );
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   // 2. Load User & Platform Collections from Cloud Firestore when logged in
@@ -527,21 +535,6 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
                 {currentUser.points} Pts
               </span>
             </button>
-
-            {/* In standalone User App APK/AAB build (VITE_APP_TARGET === 'user'), Admin is 100% excluded.
-                In web preview, only verified Firestore Super Admins see a link to the separate Admin App. */}
-            {import.meta.env.VITE_APP_TARGET !== 'user' &&
-              currentUser.isAuthorizedAdmin &&
-              onOpenSeparateAdminApp && (
-                <button
-                  onClick={onOpenSeparateAdminApp}
-                  title="শুধুমাত্র ভেরিফায়েড অ্যাডমিনের জন্য দৃশ্যমান (সাধারণ ইউজার এটি দেখতে পাবে না)"
-                  className="px-2.5 py-1.5 rounded-xl bg-[#D4AF37] hover:brightness-105 text-slate-950 text-xs font-extrabold flex items-center gap-1 shadow cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span className="hidden md:inline">Admin App (আলাদা অ্যাপ)</span>
-                </button>
-              )}
 
             {/* Notifications Bell -> Navigates to dedicated Notifications Screen */}
             <button

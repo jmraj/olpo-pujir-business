@@ -1833,36 +1833,90 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       </div>
 
       {/* In standalone User App build (VITE_APP_TARGET === 'user'), Admin is 100% excluded.
-          In web preview, only verified Firestore Super Admins see a link to the separate Admin App (/admin). */}
+          In web preview, only verified Firestore Super Admins see the Admin Panel & App Download card inside Profile. */}
       {import.meta.env.VITE_APP_TARGET !== 'user' && user.isAuthorizedAdmin && (
-        <a
-          href="/admin.html"
-          onClick={(e) => {
-            e.preventDefault();
-            onNavigate('admin');
-          }}
-          className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-emerald-50 border-2 border-[#D4AF37] flex items-center justify-between text-left shadow-xs cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[#064E3B] text-[#FBBF24] flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm font-extrabold text-slate-900">
-                  অল্প পুঁজির ব্যবসা Admin (আলাদা অ্যাডমিন অ্যাপ)
-                </h4>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-900 text-[#FDE68A] text-[10px] font-bold">
-                  শুধুমাত্র অ্যাডমিন দৃশ্যমান
-                </span>
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-emerald-50 border-2 border-[#D4AF37] space-y-3 shadow-xs">
+          <button
+            type="button"
+            onClick={() => onNavigate('admin')}
+            className="w-full flex items-center justify-between text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-[#064E3B] text-[#FBBF24] flex items-center justify-center">
+                <ShieldCheck className="w-6 h-6" />
               </div>
-              <p className="text-xs text-slate-600 mt-0.5">
-                সাধারণ ইউজাররা এই অপশন বা অ্যাডমিন সাইড কখনোই দেখতে পাবে না • Separate User & Admin APK/AAB ডাউনলোড
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-extrabold text-slate-900">
+                    অল্প পুঁজির ব্যবসা Admin (অ্যাডমিন প্যানেলে যান)
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-900 text-[#FDE68A] text-[10px] font-bold">
+                    শুধুমাত্র অ্যাডমিন দৃশ্যমান
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  সাধারণ ইউজাররা এই অপশন বা অ্যাডমিন সাইড কখনোই দেখতে পাবে না
+                </p>
+              </div>
             </div>
+            <ChevronRight className="w-5 h-5 text-[#064E3B]" />
+          </button>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-amber-200/80">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/download/user-app', {
+                    credentials: 'include',
+                  });
+                  const html = await res.text();
+                  const blob = new Blob([html], {
+                    type: 'text/html;charset=utf-8',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Alpo_Pujir_Bebsha_User_App.html';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(() => URL.revokeObjectURL(url), 15000);
+                } catch {}
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#064E3B] hover:bg-[#047857] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow cursor-pointer"
+            >
+              <ArrowDownToLine className="w-4 h-4 text-[#FBBF24]" />
+              <span>ইউজার অ্যাপ ডাউনলোড (4 MB)</span>
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/download/admin-app', {
+                    credentials: 'include',
+                  });
+                  const html = await res.text();
+                  const blob = new Blob([html], {
+                    type: 'text/html;charset=utf-8',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Alpo_Pujir_Bebsha_Admin_App.html';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(() => URL.revokeObjectURL(url), 15000);
+                } catch {}
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#D4AF37] hover:brightness-105 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow cursor-pointer"
+            >
+              <ArrowDownToLine className="w-4 h-4" />
+              <span>অ্যাডমিন অ্যাপ ডাউনলোড (4 MB)</span>
+            </button>
           </div>
-          <ChevronRight className="w-5 h-5 text-[#064E3B]" />
-        </a>
+        </div>
       )}
 
       {/* Logout Button */}

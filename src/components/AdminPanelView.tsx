@@ -407,6 +407,48 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const [downloadingApp, setDownloadingApp] = useState<'user' | 'admin' | null>(
+    null
+  );
+
+  const downloadStandaloneHtmlApp = async (target: 'user' | 'admin') => {
+    if (downloadingApp) return;
+    setDownloadingApp(target);
+    try {
+      const endpoint =
+        target === 'user'
+          ? '/api/download/user-app'
+          : '/api/download/admin-app';
+      const filename =
+        target === 'user'
+          ? 'Alpo_Pujir_Bebsha_User_App.html'
+          : 'Alpo_Pujir_Bebsha_Admin_App.html';
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const htmlText = await res.text();
+      const blob = new Blob([htmlText], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
+    } catch {
+      downloadProjectFiles(
+        target === 'user' ? USER_ANDROID_KOTLIN_FILES : ADMIN_ANDROID_KOTLIN_FILES,
+        target === 'user'
+          ? 'alpo-pujir-bebsha-USER-APP-playstore-aab-project.txt'
+          : 'alpo-pujir-bebsha-ADMIN-APP-private-apk-project.txt'
+      );
+    } finally {
+      setDownloadingApp(null);
+    }
+  };
+
   const handleDownloadAndroidBundle = () => {
     downloadProjectFiles(
       ANDROID_KOTLIN_FILES,
@@ -415,17 +457,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
   };
 
   const handleDownloadUserAppBundle = () => {
-    downloadProjectFiles(
-      USER_ANDROID_KOTLIN_FILES,
-      'alpo-pujir-bebsha-USER-APP-playstore-aab-project.txt'
-    );
+    downloadStandaloneHtmlApp('user');
   };
 
   const handleDownloadAdminAppBundle = () => {
-    downloadProjectFiles(
-      ADMIN_ANDROID_KOTLIN_FILES,
-      'alpo-pujir-bebsha-ADMIN-APP-private-apk-project.txt'
-    );
+    downloadStandaloneHtmlApp('admin');
   };
 
   const navItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [

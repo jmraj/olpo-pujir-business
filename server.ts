@@ -1,13 +1,98 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import esbuild from 'esbuild';
 import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const ANDROID_FILE_VIEWER_POLYFILL = `<script>
+(function() {
+  try {
+    var testKey = '__apb_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+  } catch (e) {
+    var mem = {};
+    var fakeStorage = {
+      getItem: function(k) { return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+      setItem: function(k, v) { mem[k] = String(v); },
+      removeItem: function(k) { delete mem[k]; },
+      clear: function() { mem = {}; },
+      key: function(i) { return Object.keys(mem)[i] || null; },
+      get length() { return Object.keys(mem).length; }
+    };
+    try {
+      Object.defineProperty(window, 'localStorage', { value: fakeStorage, configurable: true });
+      Object.defineProperty(window, 'sessionStorage', { value: fakeStorage, configurable: true });
+    } catch (err) {}
+  }
+})();
+</script>`;
+
+const cachedBundles: Record<string, string> = {};
+
+function buildSelfContainedHtml(target: 'user' | 'admin'): string | null {
+  if (cachedBundles[target]) return cachedBundles[target];
+
+  const dir = path.join(__dirname, 'dist', target);
+  const htmlFile = path.join(dir, target === 'user' ? 'user.html' : 'admin.html');
+  if (!fs.existsSync(htmlFile)) return null;
+
+  let html = fs.readFileSync(htmlFile, 'utf-8');
+  const assetsDir = path.join(dir, 'assets');
+  if (!fs.existsSync(assetsDir)) return html;
+
+  const files = fs.readdirSync(assetsDir);
+  const cssFile = files.find((f) => f.endsWith('.css'));
+  const jsFile = files.find((f) => f.endsWith('.js'));
+
+  const cssContent = cssFile
+    ? fs.readFileSync(path.join(assetsDir, cssFile), 'utf-8')
+    : '';
+  let jsContent = jsFile
+    ? fs.readFileSync(path.join(assetsDir, jsFile), 'utf-8')
+    : '';
+
+  // Convert ESM bundle to standard IIFE script so Android content:// / file:// viewers execute it without module CORS restrictions
+  if (jsContent) {
+    try {
+      const transformed = esbuild.transformSync(jsContent, {
+        format: 'iife',
+        target: 'es2019',
+      });
+      jsContent = transformed.code;
+    } catch (e) {
+      console.warn('esbuild transform fallback:', e);
+    }
+  }
+
+  // Remove external script/link tags pointing to /assets/*
+  html = html.replace(
+    /<script[^>]*src="\/assets\/[^"]+"[^>]*><\/script>/g,
+    ''
+  );
+  html = html.replace(/<link[^>]*href="\/assets\/[^"]+"[^>]*>/g, '');
+
+  // Inject polyfill and inline CSS into <head> and standard <script> before </body>
+  html = html.replace(
+    '</head>',
+    `${ANDROID_FILE_VIEWER_POLYFILL}\n<style>\n${cssContent}\n</style>\n</head>`
+  );
+
+  if (jsContent) {
+    const safeJs = jsContent.replace(/<\/script>/gi, '<\\/script>');
+    html = html.replace('</body>', `<script>\n${safeJs}\n</script>\n</body>`);
+  }
+
+  cachedBundles[target] = html;
+  return html;
+}
 
 const SYSTEM_INSTRUCTION = `তুমি "অল্প পুঁজির ব্যবসা (ছোট পুঁজি • বড় সম্ভাবনা)" প্ল্যাটফর্মের প্রধান AI Business Consultant।
 তোমার কাজ হলো বাংলাদেশের ক্ষুদ্র ও মাঝারি উদ্যোক্তাদের (SME Entrepreneurs) বাংলা ভাষায় বাস্তবসম্মত, লাভজনক এবং কার্যকরী ব্যবসার পরামর্শ দেওয়া।
@@ -48,6 +133,34 @@ function getFallbackAdvice(userPrompt: string): string {
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: '2mb' }));
+
+  app.get('/api/download/user-app', (_req, res) => {
+    const bundled = buildSelfContainedHtml('user');
+    if (!bundled) {
+      res.status(404).send('User App build not found. Please run npm run build:user.');
+      return;
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Alpo_Pujir_Bebsha_User_App.html"'
+    );
+    res.send(bundled);
+  });
+
+  app.get('/api/download/admin-app', (_req, res) => {
+    const bundled = buildSelfContainedHtml('admin');
+    if (!bundled) {
+      res.status(404).send('Admin App build not found. Please run npm run build:admin.');
+      return;
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Alpo_Pujir_Bebsha_Admin_App.html"'
+    );
+    res.send(bundled);
+  });
 
   app.post('/api/ai/chat', async (req, res) => {
     const { messages, modelChoice } = req.body as {
