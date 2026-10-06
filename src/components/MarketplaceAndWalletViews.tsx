@@ -1867,17 +1867,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               type="button"
               onClick={async () => {
                 try {
-                  const res = await fetch('/api/download/user-app', {
+                  const res = await fetch('/api/download/user-zip', {
                     credentials: 'include',
                   });
-                  const html = await res.text();
-                  const blob = new Blob([html], {
-                    type: 'text/html;charset=utf-8',
+                  const buf = await res.arrayBuffer();
+                  const blob = new Blob([buf], {
+                    type: 'application/zip',
                   });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = 'Alpo_Pujir_Bebsha_User_App.html';
+                  a.download = 'Alpo_Pujir_Bebsha_User_App.zip';
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
@@ -1887,23 +1887,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               className="py-2.5 px-3 rounded-xl bg-[#064E3B] hover:bg-[#047857] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow cursor-pointer"
             >
               <ArrowDownToLine className="w-4 h-4 text-[#FBBF24]" />
-              <span>ইউজার অ্যাপ ডাউনলোড (4 MB)</span>
+              <span>ইউজার অ্যাপ ZIP ডাউনলোড (.zip)</span>
             </button>
             <button
               type="button"
               onClick={async () => {
                 try {
-                  const res = await fetch('/api/download/admin-app', {
+                  const res = await fetch('/api/download/admin-zip', {
                     credentials: 'include',
                   });
-                  const html = await res.text();
-                  const blob = new Blob([html], {
-                    type: 'text/html;charset=utf-8',
+                  const buf = await res.arrayBuffer();
+                  const blob = new Blob([buf], {
+                    type: 'application/zip',
                   });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = 'Alpo_Pujir_Bebsha_Admin_App.html';
+                  a.download = 'Alpo_Pujir_Bebsha_Admin_App.zip';
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
@@ -1913,7 +1913,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               className="py-2.5 px-3 rounded-xl bg-[#D4AF37] hover:brightness-105 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow cursor-pointer"
             >
               <ArrowDownToLine className="w-4 h-4" />
-              <span>অ্যাডমিন অ্যাপ ডাউনলোড (4 MB)</span>
+              <span>অ্যাডমিন অ্যাপ ZIP ডাউনলোড (.zip)</span>
             </button>
           </div>
         </div>

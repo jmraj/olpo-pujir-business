@@ -36,6 +36,110 @@ const ANDROID_FILE_VIEWER_POLYFILL = `<script>
 </script>`;
 
 const cachedBundles: Record<string, string> = {};
+const cachedZips: Record<string, Buffer> = {};
+
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createZipArchive(files: Array<{ name: string; data: Buffer }>): Buffer {
+  const localParts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const nameBuf = Buffer.from(file.name, 'utf-8');
+    const dataBuf = file.data;
+    const crc = crc32(dataBuf);
+
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0); // Local file header signature
+    localHeader.writeUInt16LE(20, 4); // Version needed
+    localHeader.writeUInt16LE(0, 6); // Flags
+    localHeader.writeUInt16LE(0, 8); // Compression method (0 = Store)
+    localHeader.writeUInt16LE(0, 10); // Mod time
+    localHeader.writeUInt16LE(0, 12); // Mod date
+    localHeader.writeUInt32LE(crc, 14); // CRC-32
+    localHeader.writeUInt32LE(dataBuf.length, 18); // Compressed size
+    localHeader.writeUInt32LE(dataBuf.length, 22); // Uncompressed size
+    localHeader.writeUInt16LE(nameBuf.length, 26); // Filename length
+    localHeader.writeUInt16LE(0, 28); // Extra field length
+
+    localParts.push(localHeader, nameBuf, dataBuf);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0); // Central directory signature
+    centralHeader.writeUInt16LE(20, 4); // Version made by
+    centralHeader.writeUInt16LE(20, 6); // Version needed
+    centralHeader.writeUInt16LE(0, 8); // Flags
+    centralHeader.writeUInt16LE(0, 10); // Compression method (0 = Store)
+    centralHeader.writeUInt16LE(0, 12); // Mod time
+    centralHeader.writeUInt16LE(0, 14); // Mod date
+    centralHeader.writeUInt32LE(crc, 16); // CRC-32
+    centralHeader.writeUInt32LE(dataBuf.length, 20); // Compressed size
+    centralHeader.writeUInt32LE(dataBuf.length, 24); // Uncompressed size
+    centralHeader.writeUInt16LE(nameBuf.length, 28); // Filename length
+    centralHeader.writeUInt16LE(0, 30); // Extra field length
+    centralHeader.writeUInt16LE(0, 32); // File comment length
+    centralHeader.writeUInt16LE(0, 34); // Disk number
+    centralHeader.writeUInt16LE(0, 36); // Internal attributes
+    centralHeader.writeUInt32LE(0, 38); // External attributes
+    centralHeader.writeUInt32LE(offset, 42); // Relative offset
+
+    centralParts.push(centralHeader, nameBuf);
+    offset += localHeader.length + nameBuf.length + dataBuf.length;
+  }
+
+  const centralDirBuf = Buffer.concat(centralParts);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0); // End of central directory signature
+  eocd.writeUInt16LE(0, 4); // Number of this disk
+  eocd.writeUInt16LE(0, 6); // Disk where central directory starts
+  eocd.writeUInt16LE(files.length, 8); // Number of central directory records on this disk
+  eocd.writeUInt16LE(files.length, 10); // Total number of central directory records
+  eocd.writeUInt32LE(centralDirBuf.length, 12); // Size of central directory
+  eocd.writeUInt32LE(offset, 16); // Offset of start of central directory
+  eocd.writeUInt16LE(0, 20); // Comment length
+
+  return Buffer.concat([...localParts, centralDirBuf, eocd]);
+}
+
+function buildSelfContainedZip(target: 'user' | 'admin'): Buffer | null {
+  if (cachedZips[target]) return cachedZips[target];
+  const html = buildSelfContainedHtml(target);
+  if (!html) return null;
+
+  const manifest = JSON.stringify(
+    {
+      name:
+        target === 'admin'
+          ? 'অল্প পুঁজির ব্যবসা Admin'
+          : 'অল্প পুঁজির ব্যবসা',
+      short_name:
+        target === 'admin' ? 'ব্যবসা Admin' : 'অল্প পুঁজির ব্যবসা',
+      start_url: 'index.html',
+      display: 'standalone',
+      background_color: '#042F24',
+      theme_color: '#064E3B',
+    },
+    null,
+    2
+  );
+
+  const zipBuf = createZipArchive([
+    { name: 'index.html', data: Buffer.from(html, 'utf-8') },
+    { name: 'manifest.json', data: Buffer.from(manifest, 'utf-8') },
+  ]);
+  cachedZips[target] = zipBuf;
+  return zipBuf;
+}
 
 function buildSelfContainedHtml(target: 'user' | 'admin'): string | null {
   if (cachedBundles[target]) return cachedBundles[target];
@@ -160,6 +264,34 @@ async function startServer() {
       'attachment; filename="Alpo_Pujir_Bebsha_Admin_App.html"'
     );
     res.send(bundled);
+  });
+
+  app.get('/api/download/user-zip', (_req, res) => {
+    const zipBuf = buildSelfContainedZip('user');
+    if (!zipBuf) {
+      res.status(404).send('User App ZIP not found.');
+      return;
+    }
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Alpo_Pujir_Bebsha_User_App.zip"'
+    );
+    res.send(zipBuf);
+  });
+
+  app.get('/api/download/admin-zip', (_req, res) => {
+    const zipBuf = buildSelfContainedZip('admin');
+    if (!zipBuf) {
+      res.status(404).send('Admin App ZIP not found.');
+      return;
+    }
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Alpo_Pujir_Bebsha_Admin_App.zip"'
+    );
+    res.send(zipBuf);
   });
 
   app.post('/api/ai/chat', async (req, res) => {

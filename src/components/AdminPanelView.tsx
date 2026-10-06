@@ -411,24 +411,24 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
     null
   );
 
-  const downloadStandaloneHtmlApp = async (target: 'user' | 'admin') => {
+  const downloadStandaloneZipApp = async (target: 'user' | 'admin') => {
     if (downloadingApp) return;
     setDownloadingApp(target);
     try {
       const endpoint =
         target === 'user'
-          ? '/api/download/user-app'
-          : '/api/download/admin-app';
+          ? '/api/download/user-zip'
+          : '/api/download/admin-zip';
       const filename =
         target === 'user'
-          ? 'Alpo_Pujir_Bebsha_User_App.html'
-          : 'Alpo_Pujir_Bebsha_Admin_App.html';
+          ? 'Alpo_Pujir_Bebsha_User_App.zip'
+          : 'Alpo_Pujir_Bebsha_Admin_App.zip';
       const res = await fetch(endpoint, {
         method: 'GET',
         credentials: 'include',
       });
-      const htmlText = await res.text();
-      const blob = new Blob([htmlText], { type: 'text/html;charset=utf-8' });
+      const buf = await res.arrayBuffer();
+      const blob = new Blob([buf], { type: 'application/zip' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -457,11 +457,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
   };
 
   const handleDownloadUserAppBundle = () => {
-    downloadStandaloneHtmlApp('user');
+    downloadStandaloneZipApp('user');
   };
 
   const handleDownloadAdminAppBundle = () => {
-    downloadStandaloneHtmlApp('admin');
+    downloadStandaloneZipApp('admin');
   };
 
   const navItems: { id: AdminSection; label: string; icon: React.ReactNode }[] = [
@@ -570,7 +570,23 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
               রোল-ভিত্তিক নিরাপত্তা ও রিয়েল-টাইম Firestore প্ল্যাটফর্ম ব্যবস্থাপনা
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadUserAppBundle}
+              className="px-3.5 py-2 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-[#FBBF24]" />
+              <span>ইউজার অ্যাপ ZIP (.zip)</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadAdminAppBundle}
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>অ্যাডমিন অ্যাপ ZIP (.zip)</span>
+            </button>
             {(['7d', '30d', 'all'] as const).map((tf) => (
               <button
                 key={tf}
@@ -2143,7 +2159,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download User App (APK / Play Store AAB) Config</span>
+                  <span>ইউজার অ্যাপ ZIP ফাইল ডাউনলোড (Alpo_Pujir_Bebsha_User_App.zip)</span>
                 </button>
               </div>
 
@@ -2174,7 +2190,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download Admin App (Private APK / AAB) Config</span>
+                  <span>অ্যাডমিন অ্যাপ ZIP ফাইল ডাউনলোড (Alpo_Pujir_Bebsha_Admin_App.zip)</span>
                 </button>
               </div>
             </div>
