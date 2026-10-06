@@ -1,0 +1,220 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document with role, membership, wallet summary, and referral metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "role": { "type": "string", "enum": ["user", "seller", "support", "moderator", "admin", "super_admin"] },
+        "status": { "type": "string", "enum": ["active", "banned"] },
+        "membershipTier": { "type": "string", "enum": ["free", "premium"] },
+        "walletBalance": { "type": "number" },
+        "points": { "type": "number" },
+        "referralCode": { "type": "string", "maxLength": 32 },
+        "referredBy": { "type": "string", "maxLength": 64 },
+        "favorites": { "type": "array" },
+        "checklistProgress": { "type": "string", "maxLength": 5000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "role", "status", "membershipTier", "walletBalance", "points", "referralCode", "createdAt", "updatedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Business category managed by administrators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nameBn": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "nameEn": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "iconName": { "type": "string", "maxLength": 50 },
+        "group": { "type": "string", "enum": ["existing", "new", "popular", "special"] },
+        "ideaCount": { "type": "number" },
+        "enabled": { "type": "boolean" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "nameBn", "nameEn", "iconName", "group", "ideaCount", "enabled", "order", "createdAt"]
+    },
+    "BusinessIdea": {
+      "title": "BusinessIdea",
+      "description": "Detailed low-investment business idea stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "shortDescription": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "requiredInvestment": { "type": "string", "maxLength": 100 },
+        "minInvestmentBdt": { "type": "number" },
+        "expectedDailySales": { "type": "string", "maxLength": 100 },
+        "expectedMonthlyRevenue": { "type": "string", "maxLength": 100 },
+        "estimatedExpenses": { "type": "string", "maxLength": 100 },
+        "estimatedProfit": { "type": "string", "maxLength": 100 },
+        "difficulty": { "type": "string", "enum": ["সহজ", "মাঝারি", "উন্নত"] },
+        "requiredEquipment": { "type": "string", "maxLength": 1000 },
+        "requiredLocation": { "type": "string", "maxLength": 300 },
+        "requiredSkills": { "type": "string", "maxLength": 500 },
+        "startupSteps": { "type": "string", "maxLength": 2000 },
+        "productSourcing": { "type": "string", "maxLength": 1000 },
+        "marketingStrategy": { "type": "string", "maxLength": 1000 },
+        "risk": { "type": "string", "maxLength": 800 },
+        "tips": { "type": "string", "maxLength": 1000 },
+        "isPremium": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "category", "shortDescription", "requiredInvestment", "minInvestmentBdt", "expectedDailySales", "expectedMonthlyRevenue", "estimatedExpenses", "estimatedProfit", "difficulty", "requiredEquipment", "requiredLocation", "requiredSkills", "startupSteps", "productSourcing", "marketingStrategy", "risk", "tips", "isPremium", "isFeatured", "rating", "createdAt"]
+    },
+    "MarketplaceProduct": {
+      "title": "MarketplaceProduct",
+      "description": "Product listed in the entrepreneurship marketplace.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "priceBdt": { "type": "number" },
+        "stock": { "type": "number" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "location": { "type": "string", "maxLength": 160 },
+        "sellerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "sellerName": { "type": "string", "maxLength": 120 },
+        "sellerPhone": { "type": "string", "maxLength": 40 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "category", "priceBdt", "stock", "description", "location", "sellerId", "sellerName", "sellerPhone", "status", "rating", "createdAt"]
+    },
+    "MarketplaceOrder": {
+      "title": "MarketplaceOrder",
+      "description": "Order placed by a user for a marketplace product.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productTitle": { "type": "string", "maxLength": 160 },
+        "buyerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "buyerName": { "type": "string", "maxLength": 120 },
+        "buyerPhone": { "type": "string", "maxLength": 40 },
+        "deliveryAddress": { "type": "string", "maxLength": 300 },
+        "quantity": { "type": "number" },
+        "totalPriceBdt": { "type": "number" },
+        "status": { "type": "string", "enum": ["placed", "confirmed", "shipped", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "productId", "productTitle", "buyerId", "buyerName", "buyerPhone", "deliveryAddress", "quantity", "totalPriceBdt", "status", "createdAt"]
+    },
+    "WithdrawalRequest": {
+      "title": "WithdrawalRequest",
+      "description": "User withdrawal request for wallet balance.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "maxLength": 120 },
+        "amountBdt": { "type": "number" },
+        "method": { "type": "string", "enum": ["bKash", "Nagad", "Bank"] },
+        "accountNumber": { "type": "string", "minLength": 4, "maxLength": 50 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "cancelled"] },
+        "rejectionReason": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "amountBdt", "method", "accountNumber", "status", "createdAt", "updatedAt"]
+    },
+    "MembershipRequest": {
+      "title": "MembershipRequest",
+      "description": "299 BDT Premium Membership payment state record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "maxLength": 120 },
+        "amountBdt": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["bKash", "Nagad", "Bank"] },
+        "transactionReference": { "type": "string", "minLength": 4, "maxLength": 80 },
+        "status": { "type": "string", "enum": ["initiated", "pending", "verified", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "amountBdt", "paymentMethod", "transactionReference", "status", "createdAt", "updatedAt"]
+    },
+    "WalletTransaction": {
+      "title": "WalletTransaction",
+      "description": "Audit log and transaction history for wallet balance and points.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["membership", "referral", "reward", "withdrawal", "adjustment"] },
+        "amountBdt": { "type": "number" },
+        "pointsDelta": { "type": "number" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "adminId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "type", "amountBdt", "pointsDelta", "reason", "createdAt"]
+    },
+    "PlatformNotice": {
+      "title": "PlatformNotice",
+      "description": "Admin notice or announcement targeted to users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "targetAudience": { "type": "string", "enum": ["all", "premium", "selected"] },
+        "published": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "message", "targetAudience", "published", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles restricted to owner and admins."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Business categories readable by authenticated users and editable by admins."
+    },
+    "/businessIdeas/{ideaId}": {
+      "schema": { "$ref": "#/entities/BusinessIdea" },
+      "description": "Business ideas readable by authenticated users and managed by admins."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/MarketplaceProduct" },
+      "description": "Marketplace products created by sellers and moderated by admins."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/MarketplaceOrder" },
+      "description": "Marketplace orders accessible to the buyer and admins."
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/WithdrawalRequest" },
+      "description": "Withdrawal requests created by users and approved/rejected by admins."
+    },
+    "/memberships/{membershipId}": {
+      "schema": { "$ref": "#/entities/MembershipRequest" },
+      "description": "Premium membership payment records verified by admins."
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/WalletTransaction" },
+      "description": "Wallet and points audit transactions."
+    },
+    "/notices/{noticeId}": {
+      "schema": { "$ref": "#/entities/PlatformNotice" },
+      "description": "Announcements and notifications published by admins."
+    }
+  }
+}

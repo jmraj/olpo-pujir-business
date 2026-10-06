@@ -1,0 +1,442 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isBootstrappedAdmin() {
+      return isSignedIn() && (request.auth.token.email == 'hasanmehedy670@gmail.com' || request.auth.token.email == 'admin@alpopujirbebsha.app');
+    }
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // Entity Blueprint Validators
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'status', 'membershipTier', 'walletBalance', 'points', 'referralCode', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'email', 'phone', 'role', 'status', 'membershipTier', 'walletBalance', 'points', 'referralCode', 'referredBy', 'favorites', 'checklistProgress', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 30))
+        && data.role is string && data.role in ['user', 'seller', 'support', 'moderator', 'admin', 'super_admin']
+        && data.status is string && data.status in ['active', 'banned']
+        && data.membershipTier is string && data.membershipTier in ['free', 'premium']
+        && data.walletBalance is number && data.walletBalance >= 0 && data.walletBalance <= 10000000
+        && data.points is number && data.points >= 0 && data.points <= 10000000
+        && data.referralCode is string && data.referralCode.size() >= 3 && data.referralCode.size() <= 32
+        && (!('referredBy' in data) || (data.referredBy is string && data.referredBy.size() <= 64))
+        && (!('favorites' in data) || (data.favorites is list && data.favorites.size() <= 100 && (data.favorites.size() == 0 || (data.favorites[0] is string && data.favorites[0].size() <= 128))))
+        && (!('checklistProgress' in data) || (data.checklistProgress is string && data.checklistProgress.size() <= 5000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'nameBn', 'nameEn', 'iconName', 'group', 'ideaCount', 'enabled', 'order', 'createdAt'])
+        && data.keys().hasOnly(['id', 'nameBn', 'nameEn', 'iconName', 'group', 'ideaCount', 'enabled', 'order', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.nameBn is string && data.nameBn.size() >= 1 && data.nameBn.size() <= 100
+        && data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 100
+        && data.iconName is string && data.iconName.size() >= 1 && data.iconName.size() <= 50
+        && data.group is string && data.group in ['existing', 'new', 'popular', 'special']
+        && data.ideaCount is number && data.ideaCount >= 0 && data.ideaCount <= 10000
+        && data.enabled is bool
+        && data.order is number && data.order >= 0 && data.order <= 10000
+        && data.createdAt is timestamp;
+    }
+
+    function isValidBusinessIdea(data) {
+      return data.keys().hasAll(['id', 'title', 'category', 'shortDescription', 'requiredInvestment', 'minInvestmentBdt', 'expectedDailySales', 'expectedMonthlyRevenue', 'estimatedExpenses', 'estimatedProfit', 'difficulty', 'requiredEquipment', 'requiredLocation', 'requiredSkills', 'startupSteps', 'productSourcing', 'marketingStrategy', 'risk', 'tips', 'isPremium', 'isFeatured', 'rating', 'createdAt'])
+        && data.keys().hasOnly(['id', 'title', 'category', 'imageUrl', 'shortDescription', 'requiredInvestment', 'minInvestmentBdt', 'expectedDailySales', 'expectedMonthlyRevenue', 'estimatedExpenses', 'estimatedProfit', 'difficulty', 'requiredEquipment', 'requiredLocation', 'requiredSkills', 'startupSteps', 'productSourcing', 'marketingStrategy', 'risk', 'tips', 'isPremium', 'isFeatured', 'published', 'rating', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 100
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500))
+        && data.shortDescription is string && data.shortDescription.size() >= 1 && data.shortDescription.size() <= 500
+        && data.requiredInvestment is string && data.requiredInvestment.size() >= 1 && data.requiredInvestment.size() <= 100
+        && data.minInvestmentBdt is number && data.minInvestmentBdt >= 0 && data.minInvestmentBdt <= 100000000
+        && data.expectedDailySales is string && data.expectedDailySales.size() >= 1 && data.expectedDailySales.size() <= 100
+        && data.expectedMonthlyRevenue is string && data.expectedMonthlyRevenue.size() >= 1 && data.expectedMonthlyRevenue.size() <= 100
+        && data.estimatedExpenses is string && data.estimatedExpenses.size() >= 1 && data.estimatedExpenses.size() <= 100
+        && data.estimatedProfit is string && data.estimatedProfit.size() >= 1 && data.estimatedProfit.size() <= 100
+        && data.difficulty is string && data.difficulty in ['সহজ', 'মাঝারি', 'উন্নত']
+        && data.requiredEquipment is string && data.requiredEquipment.size() <= 1000
+        && data.requiredLocation is string && data.requiredLocation.size() <= 300
+        && data.requiredSkills is string && data.requiredSkills.size() <= 500
+        && data.startupSteps is string && data.startupSteps.size() <= 2000
+        && data.productSourcing is string && data.productSourcing.size() <= 1000
+        && data.marketingStrategy is string && data.marketingStrategy.size() <= 1000
+        && data.risk is string && data.risk.size() <= 800
+        && data.tips is string && data.tips.size() <= 1000
+        && data.isPremium is bool
+        && data.isFeatured is bool
+        && (!('published' in data) || data.published is bool)
+        && data.rating is number && data.rating >= 0 && data.rating <= 5
+        && data.createdAt is timestamp;
+    }
+
+    function isValidMarketplaceProduct(data) {
+      return data.keys().hasAll(['id', 'title', 'category', 'priceBdt', 'stock', 'description', 'location', 'sellerId', 'sellerName', 'sellerPhone', 'status', 'rating', 'createdAt'])
+        && data.keys().hasOnly(['id', 'title', 'category', 'priceBdt', 'stock', 'description', 'location', 'sellerId', 'sellerName', 'sellerPhone', 'imageUrl', 'status', 'rating', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 100
+        && data.priceBdt is number && data.priceBdt >= 1 && data.priceBdt <= 10000000
+        && data.stock is number && data.stock >= 0 && data.stock <= 100000
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 1500
+        && data.location is string && data.location.size() >= 1 && data.location.size() <= 160
+        && data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 && data.sellerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.sellerName is string && data.sellerName.size() >= 1 && data.sellerName.size() <= 120
+        && data.sellerPhone is string && data.sellerPhone.size() >= 4 && data.sellerPhone.size() <= 40
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500))
+        && data.status is string && data.status in ['pending', 'approved', 'rejected']
+        && data.rating is number && data.rating >= 0 && data.rating <= 5
+        && data.createdAt is timestamp;
+    }
+
+    function isValidMarketplaceOrder(data) {
+      return data.keys().hasAll(['id', 'productId', 'productTitle', 'buyerId', 'buyerName', 'buyerPhone', 'deliveryAddress', 'quantity', 'totalPriceBdt', 'status', 'createdAt'])
+        && data.keys().hasOnly(['id', 'productId', 'productTitle', 'buyerId', 'buyerName', 'buyerPhone', 'deliveryAddress', 'quantity', 'totalPriceBdt', 'status', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128 && data.productId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.productTitle is string && data.productTitle.size() >= 1 && data.productTitle.size() <= 160
+        && data.buyerId is string && data.buyerId.size() >= 1 && data.buyerId.size() <= 128 && data.buyerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.buyerName is string && data.buyerName.size() >= 1 && data.buyerName.size() <= 120
+        && data.buyerPhone is string && data.buyerPhone.size() >= 4 && data.buyerPhone.size() <= 40
+        && data.deliveryAddress is string && data.deliveryAddress.size() >= 3 && data.deliveryAddress.size() <= 300
+        && data.quantity is number && data.quantity >= 1 && data.quantity <= 1000
+        && data.totalPriceBdt is number && data.totalPriceBdt >= 1 && data.totalPriceBdt <= 100000000
+        && data.status is string && data.status in ['placed', 'confirmed', 'shipped', 'completed', 'cancelled']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidWithdrawalRequest(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'amountBdt', 'method', 'accountNumber', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'amountBdt', 'method', 'accountNumber', 'status', 'rejectionReason', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120
+        && data.amountBdt is number && data.amountBdt >= 100 && data.amountBdt <= 500000
+        && data.method is string && data.method in ['bKash', 'Nagad', 'Bank']
+        && data.accountNumber is string && data.accountNumber.size() >= 4 && data.accountNumber.size() <= 50
+        && data.status is string && data.status in ['pending', 'approved', 'rejected', 'cancelled']
+        && (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMembershipRequest(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'amountBdt', 'paymentMethod', 'transactionReference', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'amountBdt', 'paymentMethod', 'transactionReference', 'status', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120
+        && data.amountBdt is number && data.amountBdt == 299
+        && data.paymentMethod is string && data.paymentMethod in ['bKash', 'Nagad', 'Bank']
+        && data.transactionReference is string && data.transactionReference.size() >= 4 && data.transactionReference.size() <= 80
+        && data.status is string && data.status in ['initiated', 'pending', 'verified', 'failed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWalletTransaction(data) {
+      return data.keys().hasAll(['id', 'userId', 'type', 'amountBdt', 'pointsDelta', 'reason', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'type', 'amountBdt', 'pointsDelta', 'reason', 'adminId', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.type is string && data.type in ['membership', 'referral', 'reward', 'withdrawal', 'adjustment']
+        && data.amountBdt is number && data.amountBdt >= -1000000 && data.amountBdt <= 1000000
+        && data.pointsDelta is number && data.pointsDelta >= -1000000 && data.pointsDelta <= 1000000
+        && data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 300
+        && (!('adminId' in data) || (data.adminId is string && data.adminId.size() <= 128))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPlatformNotice(data) {
+      return data.keys().hasAll(['id', 'title', 'message', 'targetAudience', 'published', 'createdAt'])
+        && data.keys().hasOnly(['id', 'title', 'message', 'targetAudience', 'category', 'scheduledFor', 'published', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 1000
+        && data.targetAudience is string && data.targetAudience in ['all', 'premium', 'selected']
+        && (!('category' in data) || (data.category is string && data.category in ['general', 'business', 'membership', 'marketplace']))
+        && (!('scheduledFor' in data) || (data.scheduledFor is string && data.scheduledFor.size() <= 64))
+        && data.published is bool
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAdminAuditLog(data) {
+      return data.keys().hasAll(['id', 'adminId', 'adminEmail', 'action', 'target', 'previousValue', 'newValue', 'reason', 'createdAt'])
+        && data.keys().hasOnly(['id', 'adminId', 'adminEmail', 'action', 'target', 'previousValue', 'newValue', 'reason', 'createdAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.adminId is string && data.adminId.size() >= 1 && data.adminId.size() <= 128 && data.adminId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.adminEmail is string && data.adminEmail.size() >= 3 && data.adminEmail.size() <= 160
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 120
+        && data.target is string && data.target.size() >= 1 && data.target.size() <= 160
+        && data.previousValue is string && data.previousValue.size() <= 500
+        && data.newValue is string && data.newValue.size() <= 500
+        && data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 400
+        && data.createdAt is timestamp;
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow create, update, delete: if isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    // Users Collection (PII Protected)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == request.auth.uid
+        && userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().role == 'user' && incoming().status == 'active' && incoming().membershipTier == 'free' && incoming().walletBalance == 0 && incoming().points <= 50)
+          || isBootstrappedAdmin()
+        );
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isOwner(userId)
+            && existing().status == 'active'
+            && incoming().role == existing().role
+            && incoming().status == existing().status
+            && incoming().membershipTier == existing().membershipTier
+            && incoming().walletBalance == existing().walletBalance
+            && incoming().points == existing().points
+            && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'favorites', 'checklistProgress', 'updatedAt'])
+          )
+          || isAdmin()
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId) && isSignedIn() && (resource.data.enabled == true || isAdmin());
+      allow list: if isSignedIn() && resource.data.enabled == true;
+      allow create: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming()) && incoming().id == categoryId && incoming().createdAt == request.time && isAdmin();
+      allow update: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming()) && incoming().id == existing().id && incoming().createdAt == existing().createdAt && isAdmin();
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // Business Ideas Collection
+    match /businessIdeas/{ideaId} {
+      allow get: if isValidId(ideaId) && isSignedIn();
+      allow list: if isSignedIn() && resource.data.minInvestmentBdt >= 0;
+      allow create: if isSignedIn() && isValidId(ideaId) && isValidBusinessIdea(incoming()) && incoming().id == ideaId && incoming().createdAt == request.time && isAdmin();
+      allow update: if isSignedIn() && isValidId(ideaId) && isValidBusinessIdea(incoming()) && incoming().id == existing().id && incoming().createdAt == existing().createdAt && isAdmin();
+      allow delete: if isValidId(ideaId) && isAdmin();
+    }
+
+    // Marketplace Products Collection
+    match /products/{productId} {
+      allow get: if isValidId(productId) && isSignedIn() && (resource.data.status == 'approved' || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.status == 'approved' || resource.data.sellerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(productId)
+        && isValidMarketplaceProduct(incoming())
+        && incoming().id == productId
+        && incoming().sellerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (incoming().status == 'pending' || isAdmin());
+      allow update: if isSignedIn()
+        && isValidId(productId)
+        && isValidMarketplaceProduct(incoming())
+        && incoming().id == existing().id
+        && incoming().sellerId == existing().sellerId
+        && incoming().createdAt == existing().createdAt
+        && (
+          (
+            isOwner(existing().sellerId)
+            && incoming().status == 'pending'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'priceBdt', 'stock', 'description', 'location', 'imageUrl', 'status'])
+          )
+          || isAdmin()
+        );
+      allow delete: if isValidId(productId) && (isOwner(existing().sellerId) || isAdmin());
+    }
+
+    // Marketplace Orders Collection
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(orderId)
+        && isValidMarketplaceOrder(incoming())
+        && incoming().id == orderId
+        && incoming().buyerId == request.auth.uid
+        && incoming().status == 'placed'
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/products/$(incoming().productId))
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow update: if isSignedIn()
+        && isValidId(orderId)
+        && isValidMarketplaceOrder(incoming())
+        && incoming().id == existing().id
+        && incoming().productId == existing().productId
+        && incoming().buyerId == existing().buyerId
+        && incoming().createdAt == existing().createdAt
+        && (
+          (
+            isOwner(existing().buyerId)
+            && existing().status == 'placed'
+            && incoming().status == 'cancelled'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+          )
+          || isAdmin()
+        );
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // Withdrawals Collection
+    match /withdrawals/{withdrawalId} {
+      allow get: if isValidId(withdrawalId) && isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(withdrawalId)
+        && isValidWithdrawalRequest(incoming())
+        && incoming().id == withdrawalId
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow update: if isSignedIn()
+        && isValidId(withdrawalId)
+        && isValidWithdrawalRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().amountBdt == existing().amountBdt
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isOwner(existing().userId)
+            && existing().status == 'pending'
+            && incoming().status == 'cancelled'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+          || (
+            isAdmin()
+            && existing().status == 'pending'
+            && (
+              (incoming().status == 'approved' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+              || (incoming().status == 'rejected' && 'rejectionReason' in incoming() && incoming().rejectionReason.size() >= 3 && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rejectionReason', 'updatedAt']))
+            )
+          )
+        );
+      allow delete: if isValidId(withdrawalId) && isAdmin();
+    }
+
+    // Memberships Collection (299 BDT Payment State Machine)
+    match /memberships/{membershipId} {
+      allow get: if isValidId(membershipId) && isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(membershipId)
+        && isValidMembershipRequest(incoming())
+        && incoming().id == membershipId
+        && incoming().userId == request.auth.uid
+        && incoming().status in ['initiated', 'pending']
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow update: if isSignedIn()
+        && isValidId(membershipId)
+        && isValidMembershipRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().amountBdt == existing().amountBdt
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin()
+        && existing().status in ['initiated', 'pending']
+        && incoming().status in ['verified', 'failed']
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isValidId(membershipId) && isAdmin();
+    }
+
+    // Wallet Transactions Collection
+    match /transactions/{transactionId} {
+      allow get: if isValidId(transactionId) && isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(transactionId)
+        && isValidWalletTransaction(incoming())
+        && incoming().id == transactionId
+        && incoming().createdAt == request.time
+        && isAdmin()
+        && exists(/databases/$(database)/documents/users/$(incoming().userId));
+      allow update, delete: if false;
+    }
+
+    // Platform Notices Collection
+    match /notices/{noticeId} {
+      allow get: if isValidId(noticeId) && isSignedIn() && (resource.data.published == true || isAdmin());
+      allow list: if isSignedIn() && (resource.data.published == true || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(noticeId)
+        && isValidPlatformNotice(incoming())
+        && incoming().id == noticeId
+        && incoming().createdAt == request.time
+        && isAdmin();
+      allow update: if isSignedIn()
+        && isValidId(noticeId)
+        && isValidPlatformNotice(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && isAdmin();
+      allow delete: if isValidId(noticeId) && isAdmin();
+    }
+
+    // Admin Audit Logs Collection (Immutable Security Trail)
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isSignedIn() && (resource.data.adminId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(logId)
+        && isValidAdminAuditLog(incoming())
+        && incoming().id == logId
+        && incoming().adminId == request.auth.uid
+        && incoming().createdAt == request.time
+        && isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}
