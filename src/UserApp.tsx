@@ -52,6 +52,8 @@ import {
   INITIAL_BUY_AND_EARN_PACKAGES,
   BuyAndEarnPackageItem,
   getPaymentGatewayAccounts,
+  getSpecialPackage199Config,
+  SpecialEntryPackageConfig,
 } from './data/seedData';
 import {
   AuthViews,
@@ -113,7 +115,8 @@ export type UserActiveScreen =
   | 'checklists'
   | 'advice'
   | 'ai_consultant'
-  | 'stories';
+  | 'stories'
+  | 'special_pkg_room';
 
 interface UserAppProps {
   /** Only used in multi-app web preview for verified Super Admin to jump to separate Admin App */
@@ -210,6 +213,36 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
     }
   });
   const [resellCopiedId, setResellCopiedId] = useState<string | null>(null);
+  const [specialPkgConfig, setSpecialPkgConfig] =
+    useState<SpecialEntryPackageConfig>(() => getSpecialPackage199Config());
+  const [isSpecialPkgModalOpen, setIsSpecialPkgModalOpen] =
+    useState<boolean>(false);
+  const [pkg199UnlockedLocal, setPkg199UnlockedLocal] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('apb_pkg199_unlocked_flag') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [pkg199WelcomeClaimed, setPkg199WelcomeClaimed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('apb_pkg199_welcome_claimed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [pkg199CompletedTasksToday, setPkg199CompletedTasksToday] = useState<
+    string[]
+  >(() => {
+    try {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const raw = localStorage.getItem('apb_pkg199_tasks_' + todayKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [pkg199TaskMsg, setPkg199TaskMsg] = useState<string | null>(null);
   const paymentAccounts = getPaymentGatewayAccounts();
 
   const handleCopyPayNumber = (num: string) => {
@@ -876,22 +909,45 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
                 {categories
                   .filter((c) => c.enabled && c.group === 'investment')
                   .map((invCat) => {
+                    const isSpecial199Cat =
+                      invCat.id === 'inv-cat-199' ||
+                      invCat.nameBn.includes('১৯৯');
+                    const hasPurchased199 =
+                      pkg199UnlockedLocal ||
+                      userInvestments.some(
+                        (inv) =>
+                          inv.projectId === 'pkg-vip-199' ||
+                          inv.categoryName === specialPkgConfig.categoryName
+                      );
                     const catProject = ideas.find(
                       (i) => i.category === invCat.nameBn
                     );
                     return (
                       <div
                         key={invCat.id}
-                        className="bg-white/10 hover:bg-white/15 backdrop-blur-xs rounded-2xl overflow-hidden border border-[#D4AF37]/40 transition flex flex-col justify-between group"
+                        className={`backdrop-blur-xs rounded-2xl overflow-hidden border transition flex flex-col justify-between group ${
+                          isSpecial199Cat
+                            ? 'bg-gradient-to-b from-amber-500/25 via-emerald-900/60 to-emerald-950/90 border-[#FDE68A] ring-2 ring-[#D4AF37]/50'
+                            : 'bg-white/10 hover:bg-white/15 border-[#D4AF37]/40'
+                        }`}
                       >
                         <div
                           onClick={() => {
-                            setSelectedCategory(invCat.nameBn);
-                            setActiveScreen('ideas');
+                            if (isSpecial199Cat) {
+                              setSpecialPkgConfig(getSpecialPackage199Config());
+                              if (hasPurchased199) {
+                                setActiveScreen('special_pkg_room');
+                              } else {
+                                setIsSpecialPkgModalOpen(true);
+                              }
+                            } else {
+                              setSelectedCategory(invCat.nameBn);
+                              setActiveScreen('ideas');
+                            }
                           }}
                           className="relative h-36 w-full overflow-hidden bg-emerald-950 cursor-pointer"
                         >
@@ -911,14 +967,20 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent" />
                           <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold shadow">
-                            {invCat.expectedRoi || 'মাসিক ১২%–২০% মুনাফা'}
+                            {isSpecial199Cat
+                              ? `🔥 প্রবেশ ফি মাত্র ৳${specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')}`
+                              : invCat.expectedRoi || 'মাসিক ১২%–২০% মুনাফা'}
                           </span>
                           <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white">
                             <span className="text-xs font-extrabold text-[#FDE68A]">
-                              সর্বনিম্ন: ৳{(invCat.minInvestBdt || 3000).toLocaleString('bn-BD')}
+                              {isSpecial199Cat
+                                ? `দৈনিক আয়: ৳${specialPkgConfig.dailyEarningBdt.toLocaleString('bn-BD')}+`
+                                : `সর্বনিম্ন: ৳${(invCat.minInvestBdt || 3000).toLocaleString('bn-BD')}`}
                             </span>
                             <span className="text-[10px] font-bold bg-emerald-600/90 px-2 py-0.5 rounded-md">
-                              {invCat.ideaCount}টি প্রজেক্ট
+                              {isSpecial199Cat
+                                ? `${specialPkgConfig.tasks.length}টি ডেইলি কাজ`
+                                : `${invCat.ideaCount}টি প্রজেক্ট`}
                             </span>
                           </div>
                         </div>
@@ -927,45 +989,88 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
                           <div>
                             <h4
                               onClick={() => {
-                                setSelectedCategory(invCat.nameBn);
-                                setActiveScreen('ideas');
-                              }}
-                              className="text-sm font-extrabold text-white hover:text-[#FDE68A] cursor-pointer"
-                            >
-                              {invCat.nameBn}
-                            </h4>
-                            <p className="text-[11px] text-emerald-100/80 mt-1 line-clamp-2 leading-relaxed">
-                              {invCat.shortDesc || invCat.nameEn}
-                            </p>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-white/10">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCategory(invCat.nameBn);
-                                setActiveScreen('ideas');
-                              }}
-                              className="py-2 px-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition cursor-pointer"
-                            >
-                              প্রজেক্ট দেখুন
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (catProject) {
-                                  setInvestModalIdea(catProject);
-                                  setInvestAmount(catProject.minInvestmentBdt || 5000);
+                                if (isSpecial199Cat) {
+                                  setSpecialPkgConfig(getSpecialPackage199Config());
+                                  if (hasPurchased199) {
+                                    setActiveScreen('special_pkg_room');
+                                  } else {
+                                    setIsSpecialPkgModalOpen(true);
+                                  }
                                 } else {
                                   setSelectedCategory(invCat.nameBn);
                                   setActiveScreen('ideas');
                                 }
                               }}
-                              className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950 text-[11px] font-extrabold shadow hover:brightness-105 transition cursor-pointer"
+                              className="text-sm font-extrabold text-white hover:text-[#FDE68A] cursor-pointer"
                             >
-                              💰 ইনভেস্ট করুন
-                            </button>
+                              {isSpecial199Cat
+                                ? specialPkgConfig.packageName
+                                : invCat.nameBn}
+                            </h4>
+                            <p className="text-[11px] text-emerald-100/85 mt-1 line-clamp-2 leading-relaxed">
+                              {isSpecial199Cat
+                                ? specialPkgConfig.shortDescription
+                                : invCat.shortDesc || invCat.nameEn}
+                            </p>
                           </div>
+
+                          {isSpecial199Cat ? (
+                            <div className="mt-3.5 pt-3 border-t border-white/15 space-y-1.5">
+                              {hasPurchased199 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSpecialPkgConfig(getSpecialPackage199Config());
+                                    setActiveScreen('special_pkg_room');
+                                  }}
+                                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FDE68A] via-[#D4AF37] to-[#F59E0B] text-slate-950 text-xs font-extrabold shadow-md hover:brightness-105 transition cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <span>🚪 প্যাকেজের ভেতর প্রবেশ করুন (কাজ ও আয়)</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSpecialPkgConfig(getSpecialPackage199Config());
+                                    setIsSpecialPkgModalOpen(true);
+                                  }}
+                                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FDE68A] via-[#D4AF37] to-[#F59E0B] text-slate-950 text-xs font-extrabold shadow-md hover:brightness-105 transition cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <span>
+                                    🔓 ৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')} দিয়ে কিনে ভেতরে প্রবেশ করুন
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-white/10">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCategory(invCat.nameBn);
+                                  setActiveScreen('ideas');
+                                }}
+                                className="py-2 px-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition cursor-pointer"
+                              >
+                                প্রজেক্ট দেখুন
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (catProject) {
+                                    setInvestModalIdea(catProject);
+                                    setInvestAmount(catProject.minInvestmentBdt || 5000);
+                                  } else {
+                                    setSelectedCategory(invCat.nameBn);
+                                    setActiveScreen('ideas');
+                                  }
+                                }}
+                                className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950 text-[11px] font-extrabold shadow hover:brightness-105 transition cursor-pointer"
+                              >
+                                💰 ইনভেস্ট করুন
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -1464,14 +1569,368 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
             categories={categories}
             ideas={ideas}
             onSelectCategory={(categoryNameBn) => {
+              if (
+                categoryNameBn === specialPkgConfig.categoryName ||
+                categoryNameBn.includes('১৯৯')
+              ) {
+                setSpecialPkgConfig(getSpecialPackage199Config());
+                const unlocked =
+                  pkg199UnlockedLocal ||
+                  userInvestments.some(
+                    (inv) =>
+                      inv.projectId === 'pkg-vip-199' ||
+                      inv.categoryName === specialPkgConfig.categoryName
+                  );
+                if (unlocked) {
+                  setActiveScreen('special_pkg_room');
+                } else {
+                  setIsSpecialPkgModalOpen(true);
+                }
+                return;
+              }
               setSelectedCategory(categoryNameBn);
               setActiveScreen('ideas');
             }}
             onSelectIdea={(idea) => {
+              if (idea.id === 'inv-idea-199') {
+                setSpecialPkgConfig(getSpecialPackage199Config());
+                const unlocked =
+                  pkg199UnlockedLocal ||
+                  userInvestments.some(
+                    (inv) =>
+                      inv.projectId === 'pkg-vip-199' ||
+                      inv.categoryName === specialPkgConfig.categoryName
+                  );
+                if (unlocked) {
+                  setActiveScreen('special_pkg_room');
+                } else {
+                  setIsSpecialPkgModalOpen(true);
+                }
+                return;
+              }
               setSelectedIdea(idea);
               setActiveScreen('idea_detail');
             }}
           />
+        )}
+
+        {/* 2B. SPECIAL 199 BDT PACKAGE INTERIOR WORK ROOM SCREEN */}
+        {activeScreen === 'special_pkg_room' && (
+          <div className="space-y-5">
+            {/* Top VIP Package Interior Banner */}
+            <div className="bg-gradient-to-br from-[#022C22] via-[#064E3B] to-[#042F24] rounded-3xl p-5 sm:p-6 text-white border-2 border-[#D4AF37] shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D4AF37] text-slate-950 text-xs font-extrabold shadow">
+                  🔓 প্যাকেজ রুম আনলকড • মেয়াদ: {specialPkgConfig.durationDays} দিন
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveScreen('home')}
+                  className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold text-white cursor-pointer"
+                >
+                  ← হোমে ফিরুন
+                </button>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                {specialPkgConfig.packageName}
+              </h2>
+              <p className="text-xs sm:text-sm text-emerald-100/90 mt-1 leading-relaxed">
+                স্বাগতম <strong>{currentUser.fullName}</strong>! আপনি সফলভাবে{' '}
+                <strong>৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')}</strong> প্যাকেজের ভেতরে প্রবেশ করেছেন। নিচের প্রতিদিনের কাজগুলো সম্পন্ন করলে সাথে সাথে আপনার ওয়ালেটে টাকা জমা হবে।
+              </p>
+
+              {/* Package Live Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                <div className="p-3 rounded-2xl bg-white/10 border border-white/15">
+                  <span className="text-[10px] text-emerald-200 block">
+                    প্যাকেজ প্রবেশ ফি
+                  </span>
+                  <span className="text-base font-extrabold text-[#FDE68A]">
+                    ৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')} (পরিশোধিত)
+                  </span>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/10 border border-white/15">
+                  <span className="text-[10px] text-emerald-200 block">
+                    আজকের সম্পন্ন কাজ
+                  </span>
+                  <span className="text-base font-extrabold text-white">
+                    {pkg199CompletedTasksToday.length} / {specialPkgConfig.tasks.length}টি টাস্ক
+                  </span>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/10 border border-white/15">
+                  <span className="text-[10px] text-emerald-200 block">
+                    দৈনিক কাজের আয়
+                  </span>
+                  <span className="text-base font-extrabold text-emerald-300">
+                    ৳{specialPkgConfig.dailyEarningBdt.toLocaleString('bn-BD')} / দিন
+                  </span>
+                </div>
+                <div className="p-3 rounded-2xl bg-amber-400/20 border border-[#D4AF37]">
+                  <span className="text-[10px] text-[#FDE68A] block">
+                    বর্তমান ওয়ালেট ব্যালেন্স
+                  </span>
+                  <span className="text-base font-extrabold text-[#FDE68A]">
+                    ৳{currentUser.walletBalance.toLocaleString('bn-BD')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {pkg199TaskMsg && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-[#059669] text-[#064E3B] text-xs sm:text-sm font-extrabold flex items-center justify-between shadow-sm">
+                <span>🎉 {pkg199TaskMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => setPkg199TaskMsg(null)}
+                  className="text-xs underline ml-3 cursor-pointer"
+                >
+                  ঠিক আছে
+                </button>
+              </div>
+            )}
+
+            {/* 1. One-Time Welcome Bonus Card inside Package */}
+            <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-emerald-50 rounded-3xl p-5 border-2 border-[#D4AF37] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold">
+                  🎁 স্পেশাল ওয়েলকাম বোনাস
+                </span>
+                <h3 className="text-base font-extrabold text-slate-900 mt-1">
+                  প্যাকেজ অ্যাক্টিভেশন ওয়েলকাম বোনাস +৳
+                  {specialPkgConfig.welcomeBonusBdt.toLocaleString('bn-BD')}
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  ৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')} প্যাকেজে প্রবেশ করার জন্য তাৎক্ষণিক ওয়েলকাম ক্যাশব্যাক বোনাস সরাসরি আপনার ওয়ালেটে নিন।
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={pkg199WelcomeClaimed}
+                onClick={async () => {
+                  if (pkg199WelcomeClaimed) return;
+                  const bonus = specialPkgConfig.welcomeBonusBdt || 30;
+                  const nextBalance = (currentUser.walletBalance || 0) + bonus;
+                  setPkg199WelcomeClaimed(true);
+                  try {
+                    localStorage.setItem('apb_pkg199_welcome_claimed', '1');
+                  } catch {}
+                  setCurrentUser((prev) =>
+                    prev ? { ...prev, walletBalance: nextBalance } : null
+                  );
+                  const txId = 'tx_wel199_' + Date.now();
+                  setAuditLogs((prev) => [
+                    {
+                      id: txId,
+                      userId: currentUser.uid,
+                      userName: currentUser.fullName,
+                      type: 'reward',
+                      amountBdt: bonus,
+                      pointsDelta: 15,
+                      reason: `৳${specialPkgConfig.entryFeeBdt} প্যাকেজ ওয়েলকাম বোনাস`,
+                      adminId: 'system',
+                      createdAt: 'এইমাত্র',
+                    },
+                    ...prev,
+                  ]);
+                  setPkg199TaskMsg(
+                    `অভিনন্দন! আপনার ওয়ালেটে +৳${bonus.toLocaleString('bn-BD')} ওয়েলকাম বোনাস সফলভাবে জমা হয়েছে!`
+                  );
+                  try {
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                      walletBalance: nextBalance,
+                      updatedAt: serverTimestamp(),
+                    });
+                  } catch {}
+                }}
+                className={`px-5 py-3 rounded-2xl text-xs font-extrabold shrink-0 cursor-pointer transition ${
+                  pkg199WelcomeClaimed
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default'
+                    : 'bg-gradient-to-r from-[#064E3B] to-[#059669] text-white shadow-md hover:brightness-105'
+                }`}
+              >
+                {pkg199WelcomeClaimed
+                  ? `✓ ৳${specialPkgConfig.welcomeBonusBdt.toLocaleString('bn-BD')} বোনাস নেওয়া হয়েছে`
+                  : `🎁 +৳${specialPkgConfig.welcomeBonusBdt.toLocaleString('bn-BD')} ওয়ালেটে নিন`}
+              </button>
+            </div>
+
+            {/* 2. Daily Interactive Work Tasks inside the 199 BDT Package */}
+            <div className="bg-white rounded-3xl p-5 border border-emerald-900/15 shadow-sm space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+                    📋 আপনার প্রতিদিনের কাজ (Daily Package Work Board)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    প্রতিটি কাজ সম্পন্ন করলেই নির্ধারিত টাকা সাথে সাথে আপনার মূল ওয়ালেটে যুক্ত হবে
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-extrabold text-[#064E3B]">
+                  আজকের কাজের লক্ষ্যমাত্রা: ৳
+                  {specialPkgConfig.tasks
+                    .reduce((sum, t) => sum + Number(t.rewardBdt || 0), 0)
+                    .toLocaleString('bn-BD')}
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {specialPkgConfig.tasks.map((task, idx) => {
+                  const isDone = pkg199CompletedTasksToday.includes(task.id);
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isDone
+                          ? 'bg-emerald-50/70 border-emerald-300'
+                          : 'bg-slate-50 hover:bg-white border-slate-200/90'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-[#064E3B] text-white text-[10px] font-extrabold">
+                            কাজ #{idx + 1}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-extrabold">
+                            আয়: +৳{Number(task.rewardBdt).toLocaleString('bn-BD')}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-extrabold text-slate-900">
+                          {task.title}
+                        </h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {task.description}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isDone}
+                        onClick={async () => {
+                          if (isDone) return;
+                          const reward = Number(task.rewardBdt) || 10;
+                          const updatedTasks = [
+                            ...pkg199CompletedTasksToday,
+                            task.id,
+                          ];
+                          setPkg199CompletedTasksToday(updatedTasks);
+                          try {
+                            const todayKey = new Date()
+                              .toISOString()
+                              .slice(0, 10);
+                            localStorage.setItem(
+                              'apb_pkg199_tasks_' + todayKey,
+                              JSON.stringify(updatedTasks)
+                            );
+                          } catch {}
+
+                          const nextBalance =
+                            (currentUser.walletBalance || 0) + reward;
+                          setCurrentUser((prev) =>
+                            prev ? { ...prev, walletBalance: nextBalance } : null
+                          );
+                          const txId = 'tx_pkg199_' + Date.now();
+                          setAuditLogs((prev) => [
+                            {
+                              id: txId,
+                              userId: currentUser.uid,
+                              userName: currentUser.fullName,
+                              type: 'reward',
+                              amountBdt: reward,
+                              pointsDelta: 5,
+                              reason: `প্যাকেজ কাজ সম্পন্ন: ${task.title}`,
+                              adminId: 'system',
+                              createdAt: 'এইমাত্র',
+                            },
+                            ...prev,
+                          ]);
+                          setPkg199TaskMsg(
+                            `"${task.title}" সফলভাবে সম্পন্ন হয়েছে! আপনার ওয়ালেটে +৳${reward.toLocaleString('bn-BD')} যোগ হয়েছে।`
+                          );
+                          try {
+                            await updateDoc(doc(db, 'users', currentUser.uid), {
+                              walletBalance: nextBalance,
+                              updatedAt: serverTimestamp(),
+                            });
+                          } catch {}
+                        }}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold shrink-0 cursor-pointer transition ${
+                          isDone
+                            ? 'bg-emerald-600 text-white cursor-default'
+                            : 'bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950 shadow hover:brightness-105'
+                        }`}
+                      >
+                        {isDone
+                          ? `✓ সম্পন্ন (+৳${Number(task.rewardBdt).toLocaleString('bn-BD')} জমা হয়েছে)`
+                          : task.actionLabel ||
+                            `কাজ সম্পন্ন করুন (+৳${Number(task.rewardBdt).toLocaleString('bn-BD')})`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. VIP Reseller Profit Section inside the 199 BDT Package */}
+            <div className="bg-white rounded-3xl p-5 border border-emerald-900/15 shadow-sm space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                    প্যাকেজ মেম্বার স্পেশাল সুবিধা
+                  </span>
+                  <h3 className="text-base font-extrabold text-slate-900 mt-1">
+                    🛍️ জিরো-পুঁজি ভিআইপি রিসেলিং (প্রতি অর্ডারে +৳
+                    {specialPkgConfig.resellCommissionBdt.toLocaleString('bn-BD')} বোনাস)
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveScreen('withdrawal')}
+                  className="px-4 py-2 rounded-xl bg-[#064E3B] text-white text-xs font-extrabold cursor-pointer"
+                >
+                  💸 আয়ের টাকা উত্তোলন করুন →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {buyPackages.slice(0, 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-2.5"
+                  >
+                    <div>
+                      <span className="text-[10px] font-bold text-[#059669]">
+                        কমিশন: +৳{specialPkgConfig.resellCommissionBdt.toLocaleString('bn-BD')} / অর্ডার
+                      </span>
+                      <h4 className="text-xs font-extrabold text-slate-900 mt-0.5 line-clamp-1">
+                        {item.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        পাইকারি রেট: ৳{item.unitPriceBdt.toLocaleString('bn-BD')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(
+                            `${item.title} — অর্ডার করতে ইনবক্স করুন! (ভিআইপি রিসেলার কোড: ${currentUser.referralCode})`
+                          );
+                          setResellCopiedId(item.id);
+                          setTimeout(() => setResellCopiedId(null), 2000);
+                        } catch {}
+                      }}
+                      className="w-full py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-[11px] font-extrabold cursor-pointer"
+                    >
+                      {resellCopiedId === item.id
+                        ? '✓ রিসেল পোস্ট কপি হয়েছে!'
+                        : '📋 রিসেল পোস্ট কপি করুন'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* 3. BUSINESS IDEAS LIST SCREEN */}
@@ -2457,6 +2916,234 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
                   {investSubmitting
                     ? 'প্রসেস হচ্ছে...'
                     : `৳${(selectedBuyPkg.unitPriceBdt * buyQty).toLocaleString('bn-BD')} পেমেন্ট ও অর্ডার নিশ্চিত করুন →`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 199 BDT Special Category Package Unlock & Entry Modal */}
+      {isSpecialPkgModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border-2 border-[#D4AF37] my-auto space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-extrabold">
+                  🔥 {specialPkgConfig.badgeText}
+                </span>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mt-1">
+                  {specialPkgConfig.packageName}
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  মাত্র <strong>৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')}</strong> দিয়ে প্যাকেজটি কিনে এখনই ভেতরে প্রবেশ করুন এবং প্রতিদিনের কাজ করে আয় শুরু করুন!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSpecialPkgModalOpen(false)}
+                className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/90 border border-emerald-200 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <span className="text-[10px] text-slate-500 block">প্যাকেজ মূল্য</span>
+                <span className="text-sm font-extrabold text-slate-900">
+                  ৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')}
+                </span>
+              </div>
+              <div className="border-x border-emerald-200">
+                <span className="text-[10px] text-slate-500 block">ওয়েলকাম বোনাস</span>
+                <span className="text-sm font-extrabold text-[#059669]">
+                  +৳{specialPkgConfig.welcomeBonusBdt.toLocaleString('bn-BD')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block">দৈনিক কাজের আয়</span>
+                <span className="text-sm font-extrabold text-amber-700">
+                  ৳{specialPkgConfig.dailyEarningBdt.toLocaleString('bn-BD')}/দিন
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
+              <div className="font-extrabold text-slate-800">
+                প্যাকেজের ভেতরে যা যা থাকছে:
+              </div>
+              {specialPkgConfig.tasks.map((t, i) => (
+                <div key={t.id} className="flex items-center justify-between text-[11px] text-slate-700">
+                  <span>✓ {i + 1}. {t.title}</span>
+                  <strong className="text-[#059669]">+৳{t.rewardBdt}</strong>
+                </div>
+              ))}
+              <div className="flex items-center justify-between text-[11px] text-slate-700 pt-1 border-t border-slate-200">
+                <span>✓ মেয়াদ: {specialPkgConfig.durationDays} দিন (মোট সম্ভাব্য আয়)</span>
+                <strong className="text-amber-700">
+                  ৳{(specialPkgConfig.dailyEarningBdt * specialPkgConfig.durationDays + specialPkgConfig.welcomeBonusBdt).toLocaleString('bn-BD')}+
+                </strong>
+              </div>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const entryFee = Number(specialPkgConfig.entryFeeBdt) || 199;
+                const monthlyExpected =
+                  (Number(specialPkgConfig.dailyEarningBdt) || 25) *
+                  (Number(specialPkgConfig.durationDays) || 30);
+                const trxToUse =
+                  investPaymentMethod === 'Wallet'
+                    ? 'WALLET-199-' + Date.now()
+                    : investTrxId.trim() || 'PKG199-' + Date.now();
+
+                setInvestSubmitting(true);
+                const invId = 'pkg199_' + Date.now();
+                const newRecord = {
+                  id: invId,
+                  userId: currentUser.uid,
+                  userName: currentUser.fullName,
+                  userPhone: currentUser.phone || '01700000000',
+                  projectId: 'pkg-vip-199',
+                  projectTitle: `${specialPkgConfig.packageName} (প্যাকেজ রুম এন্ট্রি)`,
+                  categoryName: specialPkgConfig.categoryName,
+                  amountBdt: entryFee,
+                  expectedMonthlyProfitBdt: monthlyExpected,
+                  profitSharePercent: `দৈনিক ৳${specialPkgConfig.dailyEarningBdt} আয় (${specialPkgConfig.durationDays} দিন)`,
+                  durationMonths: 1,
+                  paymentMethod: investPaymentMethod,
+                  transactionId: trxToUse,
+                  status: 'active' as const,
+                  totalProfitPaidBdt: 0,
+                  createdAt: 'এইমাত্র',
+                };
+
+                setUserInvestments((prev) => [newRecord, ...prev]);
+                setPkg199UnlockedLocal(true);
+                try {
+                  localStorage.setItem('apb_pkg199_unlocked_flag', '1');
+                } catch {}
+
+                try {
+                  await setDoc(doc(db, 'investments', invId), {
+                    ...newRecord,
+                    status: 'pending',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                  });
+                } catch {}
+
+                setInvestSubmitting(false);
+                setIsSpecialPkgModalOpen(false);
+                setInvestTrxId('');
+                setPkg199TaskMsg(
+                  `অভিনন্দন! আপনি সফলভাবে ৳${entryFee.toLocaleString('bn-BD')} প্যাকেজটি আনলক করে ভেতরে প্রবেশ করেছেন! এখন ওয়েলকাম বোনাস ও প্রতিদিনের কাজ সম্পন্ন করে আয় শুরু করুন।`
+                );
+                setActiveScreen('special_pkg_room');
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  পেমেন্ট মাধ্যম নির্বাচন করুন (৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')})
+                </label>
+                <select
+                  value={investPaymentMethod}
+                  onChange={(e) =>
+                    setInvestPaymentMethod(
+                      e.target.value as 'bKash' | 'Nagad' | 'Rocket' | 'Bank' | 'Wallet'
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800"
+                >
+                  <option value="bKash">বিকাশ (bKash Send Money)</option>
+                  <option value="Nagad">নগদ (Nagad Send Money)</option>
+                  <option value="Rocket">রকেট (Rocket Personal)</option>
+                  <option value="Wallet">অ্যাপ ওয়ালেট ব্যালেন্স</option>
+                </select>
+              </div>
+
+              {investPaymentMethod !== 'Wallet' ? (
+                <div className="p-3 rounded-2xl bg-amber-50/90 border border-amber-300 space-y-2">
+                  <div className="text-[11px] font-extrabold text-amber-950">
+                    📲 যেখানে ৳{specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')} পাঠাবেন (Send Money):
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="p-2 rounded-xl bg-white border border-pink-200 flex items-center justify-between gap-1.5">
+                      <div>
+                        <span className="text-[10px] font-bold text-pink-700 block">
+                          বিকাশ পার্সোনাল
+                        </span>
+                        <span className="text-xs font-extrabold text-slate-900 tabular-nums">
+                          {paymentAccounts.bkashNumber}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPayNumber(paymentAccounts.bkashNumber)}
+                        className="px-2 py-1 rounded-lg bg-pink-50 border border-pink-200 text-pink-700 text-[10px] font-extrabold cursor-pointer"
+                      >
+                        {copiedPayNum === paymentAccounts.bkashNumber ? 'কপি ✓' : 'কপি'}
+                      </button>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white border border-amber-200 flex items-center justify-between gap-1.5">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 block">
+                          নগদ পার্সোনাল
+                        </span>
+                        <span className="text-xs font-extrabold text-slate-900 tabular-nums">
+                          {paymentAccounts.nagadNumber}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPayNumber(paymentAccounts.nagadNumber)}
+                        className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-extrabold cursor-pointer"
+                      >
+                        {copiedPayNum === paymentAccounts.nagadNumber ? 'কপি ✓' : 'কপি'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      টাকা পাঠানোর পর আপনার TrxID বা বিকাশ/নগদ নম্বর দিন *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={investTrxId}
+                      onChange={(e) => setInvestTrxId(e.target.value)}
+                      placeholder="TrxID অথবা প্রেরক মোবাইল নম্বর লিখুন"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-[#064E3B] font-semibold">
+                  আপনার বর্তমান ওয়ালেট ব্যালেন্স: <strong>৳{currentUser.walletBalance.toLocaleString('bn-BD')}</strong>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsSpecialPkgModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={investSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#064E3B] to-[#059669] text-white text-xs font-extrabold shadow-md hover:brightness-105 cursor-pointer"
+                >
+                  {investSubmitting
+                    ? 'আনলক হচ্ছে...'
+                    : `🔓 ৳${specialPkgConfig.entryFeeBdt.toLocaleString('bn-BD')} দিয়ে প্যাকেজের ভেতর প্রবেশ করুন →`}
                 </button>
               </div>
             </form>

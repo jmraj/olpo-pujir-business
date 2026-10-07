@@ -270,7 +270,7 @@ service cloud.firestore {
         && data.projectId is string && data.projectId.size() >= 1 && data.projectId.size() <= 128
         && data.projectTitle is string && data.projectTitle.size() >= 1 && data.projectTitle.size() <= 200
         && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 120
-        && data.amountBdt is number && data.amountBdt >= 500 && data.amountBdt <= 50000000
+        && data.amountBdt is number && data.amountBdt >= 50 && data.amountBdt <= 50000000
         && data.expectedMonthlyProfitBdt is number && data.expectedMonthlyProfitBdt >= 0 && data.expectedMonthlyProfitBdt <= 10000000
         && data.profitSharePercent is string && data.profitSharePercent.size() >= 1 && data.profitSharePercent.size() <= 60
         && data.durationMonths is number && data.durationMonths >= 1 && data.durationMonths <= 120

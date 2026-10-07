@@ -188,6 +188,23 @@ export function getCategoryFallbackImage(nameBn: string, nameEn = ''): string {
 }
 
 const RAW_INITIAL_CATEGORIES: CategoryItem[] = [
+  // নতুন ৳১৯৯ স্পেশাল ওয়ার্ক ও ইনকাম প্যাকেজ ক্যাটাগরি (User 199 BDT Entry & Admin Controlled)
+  {
+    id: 'inv-cat-199',
+    nameBn: '৳১৯৯ স্পেশাল ওয়ার্ক ও ইনকাম প্যাকেজ',
+    nameEn: '199 BDT VIP Work & Profit Package',
+    iconName: 'Award',
+    imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=700&q=80',
+    group: 'investment',
+    ideaCount: 5,
+    enabled: true,
+    order: 0,
+    roiHighlight: 'দৈনিক কাজ ও ৳৭৫০+ মাসিক আয়',
+    minInvestHighlight: 'প্রবেশ ফি ৳১৯৯',
+    expectedRoi: 'দৈনিক ৳২৫–৳৫০ আয় (মাসে ৳৭৫০+)',
+    minInvestBdt: 199,
+    shortDesc: 'মাত্র ৳১৯৯ দিয়ে প্যাকেজের ভেতর প্রবেশ করে প্রতিদিন প্রোডাক্ট প্রমোশন, অর্ডার ভেরিফিকেশন ও রিসেলিং কাজ করে নিশ্চিত আয় করুন।',
+  },
   // ৩টি বিশেষ ইনভেস্টমেন্ট করে ব্যবসা করার ক্যাটাগরি (Admin & User Investment Categories)
   {
     id: 'inv-cat-1',
@@ -281,6 +298,36 @@ export const INITIAL_CATEGORIES: CategoryItem[] = RAW_INITIAL_CATEGORIES.map(
 );
 
 export const INITIAL_BUSINESS_IDEAS: BusinessIdeaItem[] = [
+  {
+    id: 'inv-idea-199',
+    title: '৳১৯৯ ভিআইপি ওয়ার্ক ও ডেইলি ইনকাম প্যাকেজ (প্যাকেজ রুম অ্যাক্সেস)',
+    category: '৳১৯৯ স্পেশাল ওয়ার্ক ও ইনকাম প্যাকেজ',
+    imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80',
+    shortDescription: 'মাত্র ৳১৯৯ দিয়ে এই স্পেশাল প্যাকেজটি কিনে ভেতরে প্রবেশ করুন এবং প্রতিদিন ৩টি বাস্তব প্রোডাক্ট প্রমোশন, রিসেল শেয়ার ও মার্কেট রিভিউ টাস্ক সম্পন্ন করে দৈনিক নিশ্চিত আয় সরাসরি ওয়ালেটে নিন।',
+    requiredInvestment: '৳১৯৯ (প্যাকেজ অ্যাক্টিভেশন ফি)',
+    minInvestmentBdt: 199,
+    expectedDailySales: 'দৈনিক ৳২৫ – ৳১৫০+ আয়',
+    expectedMonthlyRevenue: '৳৭৫০ – ৳৩,৫০০+ মাসিক আয়',
+    estimatedExpenses: 'এককালীন মাত্র ৳১৯৯ প্রবেশ ফি',
+    estimatedProfit: 'প্রতিদিন টাস্ক বোনাস + প্রতি রিসেল অর্ডারে ৳১৫০ কমিশন',
+    difficulty: 'সহজ',
+    requiredEquipment: 'শুধুমাত্র আপনার হাতের স্মার্টফোন ও ইন্টারনেট সংযোগ।',
+    requiredLocation: 'ঘরে বসে অ্যাপের ভেতর প্যাকেজ রুমে প্রবেশ করে প্রতিদিন ১০ মিনিট কাজ।',
+    requiredSkills: 'কোনো পূর্ব অভিজ্ঞতার প্রয়োজন নেই; প্যাকেজের ভেতরে সব কাজ তৈরি দেওয়া আছে।',
+    startupSteps: '১. ৳১৯৯ দিয়ে প্যাকেজটি আনলক করুন\n২. প্যাকেজের ভেতরে প্রবেশ করে দৈনিক ৩টি কাজের টাস্ক সম্পূর্ণ করুন\n৩. সাথে সাথে আপনার ওয়ালেটে আয়ের টাকা জমা হয়ে যাবে এবং বিকাশ/নগদে উত্তোলন করতে পারবেন।',
+    productSourcing: 'অ্যাপের নিজস্ব ভেরিফায়েড পাইকারি পণ্য ও স্পন্সরড ব্র্যান্ড প্রমোশন।',
+    marketingStrategy: '১-ক্লিকে প্রোডাক্ট কপি ও শেয়ার করে অতিরিক্ত রিসেলার কমিশন আয়।',
+    risk: 'কোনো ঝুঁকি নেই; জয়েন করলেই থাকছে ওয়েলকাম বোনাস ও ডেইলি আর্নিং টাস্ক।',
+    tips: 'প্রতিদিন নিয়মিত ৩টি টাস্ক সম্পন্ন করলে মাস শেষে অতিরিক্ত পারফরম্যান্স বোনাস যোগ হয়।',
+    isPremium: false,
+    isFeatured: true,
+    rating: 5.0,
+    isInvestmentProject: true,
+    roiPercent: '৩০০%+',
+    durationMonths: '১ মাস (রিনিউযোগ্য)',
+    targetCapitalBdt: 199000,
+    raisedCapitalBdt: 168500,
+  },
   {
     id: 'inv-idea-1',
     title: 'স্মার্ট ডেইরি ও গরু মোটাতাজাকরণ অ্যাগ্রো ইনভেস্টমেন্ট প্রজেক্ট',
@@ -1246,5 +1293,98 @@ export function savePaymentGatewayAccounts(
     );
   } catch {}
 }
+
+export interface SpecialPackageTaskItem {
+  id: string;
+  title: string;
+  description: string;
+  rewardBdt: number;
+  actionLabel: string;
+}
+
+export interface SpecialEntryPackageConfig {
+  id: string;
+  packageName: string;
+  categoryName: string;
+  badgeText: string;
+  entryFeeBdt: number;
+  dailyEarningBdt: number;
+  welcomeBonusBdt: number;
+  resellCommissionBdt: number;
+  durationDays: number;
+  shortDescription: string;
+  enabled: boolean;
+  tasks: SpecialPackageTaskItem[];
+}
+
+export const DEFAULT_SPECIAL_PACKAGE_199: SpecialEntryPackageConfig = {
+  id: 'pkg-vip-199',
+  packageName: '৳১৯৯ স্পেশাল ওয়ার্ক ও ডেইলি ইনকাম প্যাকেজ',
+  categoryName: '৳১৯৯ স্পেশাল ওয়ার্ক ও ইনকাম প্যাকেজ',
+  badgeText: '🔥 নতুন ক্যাটাগরি প্যাকেজ • ১-ক্লিকে প্রবেশ করুন',
+  entryFeeBdt: 199,
+  dailyEarningBdt: 25,
+  welcomeBonusBdt: 30,
+  resellCommissionBdt: 150,
+  durationDays: 30,
+  shortDescription:
+    'মাত্র ৳১৯৯ দিয়ে এই প্যাকেজটি কিনে ভেতরে প্রবেশ করুন! প্যাকেজের ভেতর প্রতিদিন ৩টি বাস্তব কাজ (প্রোডাক্ট প্রমোশন, অর্ডার চেক ও রিসেল শেয়ার) করে দৈনিক নিশ্চিত টাকা আয় করে সরাসরি ওয়ালেটে নিন।',
+  enabled: true,
+  tasks: [
+    {
+      id: 'task-199-1',
+      title: 'টাস্ক ১: ডেইলি প্রোডাক্ট প্রমোশন ও ব্র্যান্ড ভিজিট',
+      description:
+        'আমাদের ভেরিফায়েড পাইকারি পণ্যের ক্যাটালগ রিভিউ ও প্রমোশন সম্পন্ন করুন।',
+      rewardBdt: 10,
+      actionLabel: 'কাজ সম্পন্ন করুন (+৳১০)',
+    },
+    {
+      id: 'task-199-2',
+      title: 'টাস্ক ২: পাইকারি পণ্যের রিসেল লিংক শেয়ার ও ভেরিফাই',
+      description:
+        'আজকের হট-সেলিং পণ্যের রিসেল পোস্ট কপি ও ভেরিফাই করে ডেইলি বোনাস নিন।',
+      rewardBdt: 10,
+      actionLabel: 'শেয়ার ও ভেরিফাই করুন (+৳১০)',
+    },
+    {
+      id: 'task-199-3',
+      title: 'টাস্ক ৩: ডেইলি মার্কেট সার্ভে ও অ্যাক্টিভ চেক-ইন',
+      description:
+        'আজকের উদ্যোক্তা মার্কেট রেটিং ও অ্যাক্টিভ সদস্য হাজিরা সম্পন্ন করুন।',
+      rewardBdt: 5,
+      actionLabel: 'হাজিরা দিন (+৳৫)',
+    },
+  ],
+};
+
+const SPECIAL_PKG_199_STORAGE_KEY = 'alpo_pujir_special_pkg_199_v1';
+
+export function getSpecialPackage199Config(): SpecialEntryPackageConfig {
+  try {
+    const raw = localStorage.getItem(SPECIAL_PKG_199_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_SPECIAL_PACKAGE_199,
+        ...parsed,
+        tasks:
+          Array.isArray(parsed.tasks) && parsed.tasks.length > 0
+            ? parsed.tasks
+            : DEFAULT_SPECIAL_PACKAGE_199.tasks,
+      };
+    }
+  } catch {}
+  return DEFAULT_SPECIAL_PACKAGE_199;
+}
+
+export function saveSpecialPackage199Config(
+  cfg: SpecialEntryPackageConfig
+): void {
+  try {
+    localStorage.setItem(SPECIAL_PKG_199_STORAGE_KEY, JSON.stringify(cfg));
+  } catch {}
+}
+
 
 
