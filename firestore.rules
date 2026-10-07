@@ -36,7 +36,7 @@ service cloud.firestore {
     // Entity Blueprint Validators
     function isValidUserProfile(data) {
       return data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'status', 'membershipTier', 'walletBalance', 'points', 'referralCode', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['uid', 'fullName', 'email', 'phone', 'role', 'status', 'membershipTier', 'walletBalance', 'points', 'referralCode', 'referredBy', 'favorites', 'checklistProgress', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'email', 'phone', 'role', 'status', 'membershipTier', 'walletBalance', 'points', 'referralCode', 'referredBy', 'favorites', 'checklistProgress', 'unlockedPackages', 'createdAt', 'updatedAt'])
         && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
         && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
         && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
@@ -155,11 +155,12 @@ service cloud.firestore {
 
     function isValidMembershipRequest(data) {
       return data.keys().hasAll(['id', 'userId', 'userName', 'amountBdt', 'paymentMethod', 'transactionReference', 'status', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'userId', 'userName', 'amountBdt', 'paymentMethod', 'transactionReference', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'planName', 'amountBdt', 'paymentMethod', 'transactionReference', 'status', 'createdAt', 'updatedAt'])
         && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
         && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
         && data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120
-        && data.amountBdt is number && data.amountBdt == 299
+        && (!('planName' in data) || (data.planName is string && data.planName.size() <= 200))
+        && data.amountBdt is number && data.amountBdt >= 50 && data.amountBdt <= 1000000
         && data.paymentMethod is string && data.paymentMethod in ['bKash', 'Nagad', 'Bank']
         && data.transactionReference is string && data.transactionReference.size() >= 4 && data.transactionReference.size() <= 80
         && data.status is string && data.status in ['initiated', 'pending', 'verified', 'failed']
@@ -487,6 +488,24 @@ service cloud.firestore {
         && incoming().createdAt == request.time
         && isAdmin();
       allow update, delete: if false;
+    }
+
+    // App Settings & Admin Master Account Treasury Collection
+    match /appSettings/{settingId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(settingId);
+      allow delete: if isAdmin();
+    }
+
+    // User Work Submissions & Admin Account Revenue Collection
+    match /workSubmissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(submissionId)
+        && incoming().id == submissionId
+        && (incoming().userId == request.auth.uid || isAdmin());
+      allow update, delete: if isValidId(submissionId) && isAdmin();
     }
   }
 }

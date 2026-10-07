@@ -1386,5 +1386,278 @@ export function saveSpecialPackage199Config(
   } catch {}
 }
 
+export type ProfitModuleType =
+  | 'micro_task'
+  | 'dropship_resell'
+  | 'telecom_drive'
+  | 'vip_package'
+  | 'skill_course'
+  | 'seller_boost';
+
+export interface ProfitableWorkItem {
+  id: string;
+  moduleType: ProfitModuleType;
+  moduleTitleBn: string;
+  title: string;
+  description: string;
+  actionInstructions: string;
+  /** ইউজার কাজ/অর্ডার করলে অ্যাডমিনের মূল অ্যাকাউন্টে মোট কত টাকা জমা হবে */
+  totalRevenueToAdminBdt: number;
+  /** অ্যাডমিন অ্যাকাউন্ট থেকে ইউজারকে কত টাকা পারিশ্রমিক/কমিশন দেওয়া হবে */
+  userPayoutBdt: number;
+  /** অ্যাডমিনের নিট লাভ (totalRevenueToAdminBdt - userPayoutBdt) */
+  adminNetProfitBdt: number;
+  proofPlaceholder: string;
+  badge: string;
+}
+
+export interface UserWorkSubmissionRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  taskId: string;
+  moduleType: ProfitModuleType;
+  moduleTitleBn: string;
+  taskTitle: string;
+  proofText: string;
+  /** অ্যাডমিনের মূল অ্যাকাউন্টে জমা হওয়া মোট টাকা */
+  adminGrossRevenueBdt: number;
+  /** ইউজারের প্রাপ্য টাকা (অ্যাডমিন অনুমোদন করলে ইউজারের ওয়ালেটে যাবে) */
+  userPayableBdt: number;
+  /** অ্যাডমিন অ্যাকাউন্টে থেকে যাওয়া নিট লাভ */
+  adminNetProfitBdt: number;
+  /** ইতিমধ্যে অ্যাডমিন ইউজারকে কত টাকা দিয়েছেন */
+  paidToUserBdt: number;
+  status: 'pending_admin_payout' | 'paid_to_user' | 'rejected';
+  createdAtLabel?: string;
+}
+
+export const INITIAL_PROFITABLE_WORK_ITEMS: ProfitableWorkItem[] = [
+  // ১. মাইক্রো-টাস্ক ও স্পন্সরড অ্যাড প্রমোশন জোন
+  {
+    id: 'work-micro-1',
+    moduleType: 'micro_task',
+    moduleTitleBn: '১. মাইক্রো-টাস্ক ও অ্যাড প্রমোশন',
+    title: 'ভেরিফায়েড ই-কমার্স পেজ ফলো, শেয়ার ও রিভিউ কাজ',
+    description:
+      'স্পন্সরড মার্চেন্ট পেজ ভিজিট করুন, ৫-স্টার রিভিউ দিন এবং আপনার ফেসবুক/হোয়াটসঅ্যাপে শেয়ার করে প্রুফ জমা দিন।',
+    actionInstructions:
+      'কাজটি সম্পন্ন করে আপনার ফেসবুক আইডির নাম বা শেয়ার লিংক নিচে লিখে জমা দিন। কাজ জমা দিলেই অ্যাডমিন অ্যাকাউন্টে ৳৩০ স্পন্সর রেভিনিউ জমা হবে এবং অ্যাডমিন সেখান থেকে আপনাকে ৳১৫ আপনার ওয়ালেটে পাঠাবেন।',
+    totalRevenueToAdminBdt: 30,
+    userPayoutBdt: 15,
+    adminNetProfitBdt: 15,
+    proofPlaceholder: 'আপনার ফেসবুক নাম / পেজ রিভিউ রেফারেন্স লিখুন...',
+    badge: 'ইউজার পাবেন +৳১৫ • অ্যাডমিন লাভ +৳১৫',
+  },
+  {
+    id: 'work-micro-2',
+    moduleType: 'micro_task',
+    moduleTitleBn: '১. মাইক্রো-টাস্ক ও অ্যাড প্রমোশন',
+    title: 'ইউটিউব বিজনেস চ্যানেল সাবস্ক্রাইব ও ভিডিও ওয়াচ টাস্ক',
+    description:
+      'উদ্যোক্তা ব্র্যান্ডের প্রমোশনাল ভিডিও ৩ মিনিট দেখুন, লাইক ও কমেন্ট করে কাজের রিপোর্ট জমা দিন।',
+    actionInstructions:
+      'কমেন্ট করার পর আপনার ইউটিউব হ্যান্ডেল বা নাম লিখে সাবমিট করুন। অ্যাডমিন অ্যাকাউন্টে ৳২৫ জমা হবে এবং আপনি পাবেন ৳১২।',
+    totalRevenueToAdminBdt: 25,
+    userPayoutBdt: 12,
+    adminNetProfitBdt: 13,
+    proofPlaceholder: 'আপনার ইউটিউব চ্যানেল নাম বা কমেন্ট লিখুন...',
+    badge: 'ইউজার পাবেন +৳১২ • অ্যাডমিন লাভ +৳১৩',
+  },
+
+  // ২. জিরো-ইনভেস্টমেন্ট ড্রপশিপিং ও রিসেলিং হাব
+  {
+    id: 'work-resell-1',
+    moduleType: 'dropship_resell',
+    moduleTitleBn: '২. ড্রপশিপিং ও রিসেলিং হাব',
+    title: 'সুন্দরবনের খাঁটি প্রাকৃতিক মধু (১ কেজি জার) রিসেল অর্ডার',
+    description:
+      'পাইকারি মূল্য ৳৪০০, খুচরা বিক্রয়মূল্য ৳৬৫০। পুঁজি ছাড়াই অর্ডার সংগ্রহ করে কাস্টমারের নাম-ঠিকানা জমা দিন।',
+    actionInstructions:
+      'কাস্টমারের নাম, মোবাইল নম্বর ও ডেলিভারি ঠিকানা নিচে লিখুন। ডেলিভারি হতেই অ্যাডমিন অ্যাকাউন্টে মোট লাভ ৳২৫০ জমা হবে, সেখান থেকে অ্যাডমিন আপনাকে ৳১৫০ রিসেলার কমিশন ওয়ালেটে পাঠিয়ে দেবেন (অ্যাডমিন লাভ ৳১০০)।',
+    totalRevenueToAdminBdt: 250,
+    userPayoutBdt: 150,
+    adminNetProfitBdt: 100,
+    proofPlaceholder: 'কাস্টমারের নাম, মোবাইল নম্বর ও ঠিকানা লিখুন...',
+    badge: 'ইউজার কমিশন +৳১৫০ • অ্যাডমিন লাভ +৳১০০',
+  },
+  {
+    id: 'work-resell-2',
+    moduleType: 'dropship_resell',
+    moduleTitleBn: '২. ড্রপশিপিং ও রিসেলিং হাব',
+    title: 'প্রিমিয়াম স্মার্ট ওয়াচ ও ওয়্যারলেস ইয়ারবাড কম্বো রিসেল',
+    description:
+      'পাইকারি মূল্য ৳৫৫০, খুচরা বিক্রয়মূল্য ৳৮৫০। ফেসবুক মার্কেটপ্লেসে পোস্ট করে অর্ডার কনফার্ম করুন।',
+    actionInstructions:
+      'কাস্টমারের অর্ডার তথ্য জমা দিন। অর্ডার ভেরিফাই হলে অ্যাডমিন অ্যাকাউন্টে ৳৩০০ মার্জিন জমা হবে এবং সেখান থেকে আপনি পাবেন ৳১৮০ কমিশন (অ্যাডমিন লাভ ৳১২০)।',
+    totalRevenueToAdminBdt: 300,
+    userPayoutBdt: 180,
+    adminNetProfitBdt: 120,
+    proofPlaceholder: 'কাস্টমারের নাম, মোবাইল ও অর্ডার নোট লিখুন...',
+    badge: 'ইউজার কমিশন +৳১৮০ • অ্যাডমিন লাভ +৳১২০',
+  },
+
+  // ৩. মোবাইল রিচার্জ ও টেলিকম ড্রাইভ প্যাক জোন
+  {
+    id: 'work-telecom-1',
+    moduleType: 'telecom_drive',
+    moduleTitleBn: '৩. টেলিকম ড্রাইভ প্যাক ও রিচার্জ',
+    title: 'গ্রামীণফোন ও রবি ৫০ জিবি + ৫০০ মিনিট স্পেশাল ড্রাইভ প্যাক সেল',
+    description:
+      'বাজারমূল্য ৳৫৯৯, আমাদের ড্রাইভ রেট ৳৪৯০। নিজের বা কাস্টমারের নম্বরে ড্রাইভ প্যাক অর্ডার করে কমিশন আয় করুন।',
+    actionInstructions:
+      'যে মোবাইল নম্বরে ড্রাইভ প্যাক যাবে এবং পেমেন্ট রেফারেন্স লিখুন। প্রতিটি ড্রাইভ সেলে অ্যাডমিন অ্যাকাউন্টে ৳৬০ কমিশন জমা হবে এবং ইউজার পাবেন ৳৩৫ ক্যাশব্যাক (অ্যাডমিন লাভ ৳২৫)।',
+    totalRevenueToAdminBdt: 60,
+    userPayoutBdt: 35,
+    adminNetProfitBdt: 25,
+    proofPlaceholder: 'ড্রাইভ নম্বর (017/018...) ও ট্রানজেকশন নোট লিখুন...',
+    badge: 'ইউজার ক্যাশব্যাক +৳৩৫ • অ্যাডমিন লাভ +৳২৫',
+  },
+
+  // ৪. ভিআইপি লেভেল ও এজেন্সি টিম আর্নিং
+  {
+    id: 'work-vip-1',
+    moduleType: 'vip_package',
+    moduleTitleBn: '৪. ভিআইপি লেভেল ও টিম কমিশন',
+    title: 'ভিআইপি টিম লিডার ও অ্যাক্টিভ মেম্বার রেফারেল টাস্ক',
+    description:
+      'নতুন উদ্যোক্তাকে প্ল্যাটফর্মে যুক্ত করে ভিআইপি প্যাকেজ অ্যাক্টিভেশন সম্পন্ন করান।',
+    actionInstructions:
+      'নতুন সদস্যের মোবাইল নম্বর বা রেফারেল কোড নিচে জমা দিন। প্রতিটি ভিআইপি অ্যাক্টিভেশনে অ্যাডমিন অ্যাকাউন্টে ৳২০০ জমা হবে এবং আপনি পাবেন ৳৮০ ইনস্ট্যান্ট লিডার বোনাস (অ্যাডমিন লাভ ৳১২০)।',
+    totalRevenueToAdminBdt: 200,
+    userPayoutBdt: 80,
+    adminNetProfitBdt: 120,
+    proofPlaceholder: 'রেফারকৃত সদস্যের নাম ও মোবাইল নম্বর লিখুন...',
+    badge: 'ইউজার বোনাস +৳৮০ • অ্যাডমিন লাভ +৳১২০',
+  },
+
+  // ৫. পেইড বিজনেস কোর্স ও লাইভ ট্রেনিং অ্যাসাইনমেন্ট
+  {
+    id: 'work-skill-1',
+    moduleType: 'skill_course',
+    moduleTitleBn: '৫. বিজনেস কোর্স ও স্কিল রুম',
+    title: 'ফেসবুক বুস্টিং ও দারাজ সেলার প্র্যাকটিক্যাল অ্যাসাইনমেন্ট কাজ',
+    description:
+      'আমাদের ক্লায়েন্টদের ফেসবুক পেজ সেটআপ বা দারাজ শপের প্রোডাক্ট লিস্টিং করে প্রতি প্রজেক্টে আয় করুন।',
+    actionInstructions:
+      'কাজটি সম্পন্ন করে পেজ লিংক বা কাজের বিবরণ জমা দিন। ক্লায়েন্ট পেমেন্ট ৳১৫০ সরাসরি অ্যাডমিন অ্যাকাউন্টে জমা হবে এবং অ্যাডমিন সেখান থেকে আপনাকে ৳৯০ পারিশ্রমিক দেবেন (অ্যাডমিন লাভ ৳৬০)।',
+    totalRevenueToAdminBdt: 150,
+    userPayoutBdt: 90,
+    adminNetProfitBdt: 60,
+    proofPlaceholder: 'সম্পন্ন করা কাজের লিংক বা বিবরণ লিখুন...',
+    badge: 'ইউজার পারিশ্রমিক +৳৯০ • অ্যাডমিন লাভ +৳৬০',
+  },
+
+  // ৬. প্রিমিয়াম লিস্টিং ও সেলার বুস্ট ফিচার
+  {
+    id: 'work-boost-1',
+    moduleType: 'seller_boost',
+    moduleTitleBn: '৬. মার্কেটপ্লেস সেলার বুস্ট ও এস্ক্রো',
+    title: 'মার্কেটপ্লেস সেলার প্রোডাক্ট প্রমোশন ও স্পন্সরড বুস্ট কাজ',
+    description:
+      'মার্কেটপ্লেসের ফিচারড সেলারদের পণ্য ৫টি গ্রুপে শেয়ার ও কাস্টমার ইনকোয়ারি এনে দিন।',
+    actionInstructions:
+      'পণ্যের নাম এবং শেয়ারকৃত গ্রুপের নাম লিখে জমা দিন। সেলারের বুস্ট ফি থেকে ৳৮০ অ্যাডমিন অ্যাকাউন্টে জমা হবে এবং আপনি পাবেন ৳৪০ প্রমোশন ফি (অ্যাডমিন লাভ ৳৪০)।',
+    totalRevenueToAdminBdt: 80,
+    userPayoutBdt: 40,
+    adminNetProfitBdt: 40,
+    proofPlaceholder: 'প্রমোশনকৃত পণ্যের নাম ও প্রুফ বিবরণ লিখুন...',
+    badge: 'ইউজার প্রমোশন আয় +৳৪০ • অ্যাডমিন লাভ +৳৪০',
+  },
+];
+
+export interface PremiumMembershipPostItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  feeBdt: number;
+  bonusBdt: number;
+  dailyIncomeEstimateBdt: number;
+  benefits: string[];
+  badge: string;
+  publishedAt: string;
+}
+
+export interface PremiumMembershipConfig {
+  headline: string;
+  subHeadline: string;
+  mainFeeBdt: number;
+  referralBonusBdt: number;
+  rewardPointsBonus: number;
+  mainBenefits: string[];
+  announcementPost: string;
+  customPosts: PremiumMembershipPostItem[];
+}
+
+export const DEFAULT_PREMIUM_MEMBERSHIP_CONFIG: PremiumMembershipConfig = {
+  headline: 'প্রিমিয়াম উদ্যোক্তা মেম্বারশিপ — ৳২৯৯',
+  subHeadline:
+    'এককালীন মাত্র ৳২৯৯ পেমেন্টে সকল ভিআইপি ব্যবসার গাইড, পাইকারি সাপ্লায়ার ডিরেক্টরি, ভিআইপি আর্নিং কাজ এবং রেফারেল বোনাস সুবিধা।',
+  mainFeeBdt: 299,
+  referralBonusBdt: 50,
+  rewardPointsBonus: 50,
+  mainBenefits: [
+    'সকল প্রিমিয়াম ও এক্সক্লুসিভ বিজনেস আইডিয়া আনলক',
+    'ঢাকা ও সারাদেশের ভেরিফায়েড পাইকারি সাপ্লায়ার গাইড',
+    'তাৎক্ষণিক +৫০ রিওয়ার্ড পয়েন্ট বোনাস',
+    'প্রতিটি সফল প্রিমিয়াম রেফারেলে +৳৫০ ওয়ালেট বোনাস ও +৩০ পয়েন্ট',
+    'ভিআইপি ওয়ার্ক জোন ও ৭টি ক্যালকুলেটরে অগ্রাধিকার সুবিধা',
+  ],
+  announcementPost:
+    '🔥 বিশেষ অফার: প্রিমিয়াম মেম্বারশিপ সক্রিয় করলেই পাচ্ছেন ভেরিফায়েড সাপ্লায়ার লিস্ট, ভিআইপি রিসেলিং পণ্য এবং প্রতি রেফারে নগদ ৳৫০ বোনাস!',
+  customPosts: [
+    {
+      id: 'prem-post-1',
+      title: '👑 প্রিমিয়াম উদ্যোক্তা PRO প্যাক (আজকের বিশেষ অফার)',
+      subtitle:
+        'একবার মেম্বারশিপ নিলেই আজীবন সকল ভিআইপি বিজনেস গাইড, পাইকারি সোর্সিং নম্বর এবং ডেইলি প্রিমিয়াম কাজের সুবিধা পাবেন।',
+      feeBdt: 299,
+      bonusBdt: 50,
+      dailyIncomeEstimateBdt: 100,
+      benefits: [
+        'সকল প্রিমিয়াম বিজনেস প্ল্যান ও লাভের হিসাব আনলক',
+        'সরাসরি কারখানা ও পাইকারি সাপ্লায়ারদের মোবাইল নম্বর',
+        'প্রতিটি রেফারে নগদ +৳৫০ ওয়ালেট বোনাস',
+      ],
+      badge: 'সবচেয়ে জনপ্রিয় PRO প্ল্যান',
+      publishedAt: 'অফিসিয়াল মেম্বারশিপ পোস্ট',
+    },
+  ],
+};
+
+const PREMIUM_MEM_CFG_KEY = 'alpo_pujir_premium_membership_cfg_v1';
+
+export function getPremiumMembershipConfig(): PremiumMembershipConfig {
+  try {
+    const raw = localStorage.getItem(PREMIUM_MEM_CFG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_PREMIUM_MEMBERSHIP_CONFIG,
+        ...parsed,
+        mainBenefits:
+          Array.isArray(parsed.mainBenefits) && parsed.mainBenefits.length > 0
+            ? parsed.mainBenefits
+            : DEFAULT_PREMIUM_MEMBERSHIP_CONFIG.mainBenefits,
+        customPosts: Array.isArray(parsed.customPosts)
+          ? parsed.customPosts
+          : DEFAULT_PREMIUM_MEMBERSHIP_CONFIG.customPosts,
+      };
+    }
+  } catch {}
+  return DEFAULT_PREMIUM_MEMBERSHIP_CONFIG;
+}
+
+export function savePremiumMembershipConfig(
+  cfg: PremiumMembershipConfig
+): void {
+  try {
+    localStorage.setItem(PREMIUM_MEM_CFG_KEY, JSON.stringify(cfg));
+  } catch {}
+}
+
+
+
 
 

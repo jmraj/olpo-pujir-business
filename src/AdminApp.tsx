@@ -26,6 +26,12 @@ import {
   CategoryItem,
   BusinessIdeaItem,
   MarketplaceProductItem,
+  INITIAL_PROFITABLE_WORK_ITEMS,
+  ProfitableWorkItem,
+  UserWorkSubmissionRecord,
+  ProfitModuleType,
+  savePremiumMembershipConfig,
+  PremiumMembershipConfig,
 } from './data/seedData';
 import {
   AuthViews,
@@ -115,6 +121,12 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
       totalProfitPaidBdt: number;
     }>
   >([]);
+  const [adminWorkSubmissions, setAdminWorkSubmissions] = useState<
+    UserWorkSubmissionRecord[]
+  >([]);
+  const [adminWorkCatalog, setAdminWorkCatalog] = useState<
+    ProfitableWorkItem[]
+  >(INITIAL_PROFITABLE_WORK_ITEMS);
 
   const writeAdminAuditLog = async (
     action: string,
@@ -547,9 +559,53 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
       () => {}
     );
 
+    const unsubWorkSubs = onSnapshot(
+      collection(db, 'workSubmissions'),
+      (snap) => {
+        setAdminWorkSubmissions(
+          snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: data.id,
+              userId: data.userId || '',
+              userName: data.userName || 'উদ্যোক্তা সদস্য',
+              userPhone: data.userPhone || '01700000000',
+              taskId: data.taskId || '',
+              moduleType: (data.moduleType || 'micro_task') as ProfitModuleType,
+              moduleTitleBn: data.moduleTitleBn || 'কাজ ও প্রমোশন',
+              taskTitle: data.taskTitle || 'কাজের রিপোর্ট',
+              proofText: data.proofText || '',
+              adminGrossRevenueBdt: Number(data.adminGrossRevenueBdt) || 0,
+              userPayableBdt: Number(data.userPayableBdt) || 0,
+              adminNetProfitBdt: Number(data.adminNetProfitBdt) || 0,
+              paidToUserBdt: Number(data.paidToUserBdt) || 0,
+              status: (data.status || 'pending_admin_payout') as
+                | 'pending_admin_payout'
+                | 'paid_to_user'
+                | 'rejected',
+              createdAtLabel: 'লাইভ সংরক্ষিত',
+            };
+          })
+        );
+      },
+      () => {}
+    );
+
+    const unsubWorkCat = onSnapshot(
+      doc(db, 'appSettings', 'profitableWorkCatalog'),
+      (snap) => {
+        if (snap.exists() && Array.isArray(snap.data().items)) {
+          setAdminWorkCatalog(snap.data().items as ProfitableWorkItem[]);
+        }
+      },
+      () => {}
+    );
+
     return () => {
       unsubInv();
       unsubMem();
+      unsubWorkSubs();
+      unsubWorkCat();
     };
   }, [currentUser]);
 
@@ -1181,6 +1237,126 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
             `ইউজারের ওয়ালেটে আসল+লাভ জমা: ৳${totalPayout} (${target.projectTitle})`,
             target.status,
             'completed'
+          );
+        }
+      }}
+      workSubmissions={adminWorkSubmissions}
+      workCatalog={adminWorkCatalog}
+      onSavePremiumMembershipConfig={async (cfg: PremiumMembershipConfig) => {
+        savePremiumMembershipConfig(cfg);
+        try {
+          await setDoc(
+            doc(db, 'appSettings', 'premiumMembershipPost'),
+            {
+              ...cfg,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch {}
+      }}
+      onSaveWorkCatalog={async (items) => {
+        setAdminWorkCatalog(items);
+        try {
+          await setDoc(
+            doc(db, 'appSettings', 'profitableWorkCatalog'),
+            {
+              items,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch {}
+      }}
+      onManageWorkSubmission={async (subId, action, customPayAmount) => {
+        const sub = adminWorkSubmissions.find((w) => w.id === subId);
+        if (!sub) return;
+        if (action === 'reject') {
+          setAdminWorkSubmissions((prev) =>
+            prev.map((w) =>
+              w.id === subId ? { ...w, status: 'rejected' } : w
+            )
+          );
+          try {
+            await updateDoc(doc(db, 'workSubmissions', subId), {
+              status: 'rejected',
+              updatedAt: serverTimestamp(),
+            });
+          } catch {}
+          return;
+        }
+
+        if (action === 'pay_user') {
+          const payAmt =
+            typeof customPayAmount === 'number' && customPayAmount > 0
+              ? customPayAmount
+              : sub.userPayableBdt;
+          const nextPaid = (Number(sub.paidToUserBdt) || 0) + payAmt;
+          const nextAdminProfit = Math.max(
+            0,
+            sub.adminGrossRevenueBdt - nextPaid
+          );
+          setAdminWorkSubmissions((prev) =>
+            prev.map((w) =>
+              w.id === subId
+                ? {
+                    ...w,
+                    status: 'paid_to_user',
+                    paidToUserBdt: nextPaid,
+                    adminNetProfitBdt: nextAdminProfit,
+                  }
+                : w
+            )
+          );
+          setAdminUsers((prev) =>
+            prev.map((u) =>
+              u.uid === sub.userId
+                ? { ...u, walletBalance: (u.walletBalance || 0) + payAmt }
+                : u
+            )
+          );
+          try {
+            await updateDoc(doc(db, 'workSubmissions', subId), {
+              status: 'paid_to_user',
+              paidToUserBdt: nextPaid,
+              adminNetProfitBdt: nextAdminProfit,
+              updatedAt: serverTimestamp(),
+            });
+          } catch {}
+          try {
+            const txId = 'tx_work_' + Date.now();
+            await runTransaction(db, async (transaction) => {
+              const userRef = doc(db, 'users', sub.userId);
+              const uSnap = await transaction.get(userRef);
+              if (uSnap.exists()) {
+                const curBal = Number(uSnap.data().walletBalance) || 0;
+                const curPts = Number(uSnap.data().points) || 0;
+                transaction.update(userRef, {
+                  walletBalance: curBal + payAmt,
+                  points: curPts + 5,
+                  updatedAt: serverTimestamp(),
+                });
+              }
+              const txRef = doc(db, 'transactions', txId);
+              transaction.set(txRef, {
+                id: txId,
+                userId: sub.userId,
+                userName: sub.userName,
+                type: 'reward',
+                amountBdt: payAmt,
+                pointsDelta: 5,
+                reason: `অ্যাডমিন অ্যাকাউন্ট থেকে কাজের পারিশ্রমিক জমা: ${sub.taskTitle}`,
+                adminId: currentUser.uid,
+                createdAt: serverTimestamp(),
+              });
+            });
+          } catch {}
+          await writeAdminAuditLog(
+            'PAY_WORK_SUBMISSION',
+            subId,
+            `অ্যাডমিন অ্যাকাউন্ট থেকে ইউজারকে কাজের টাকা প্রদান: ৳${payAmt} (${sub.taskTitle})`,
+            sub.status,
+            'paid_to_user'
           );
         }
       }}

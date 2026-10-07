@@ -36,6 +36,8 @@ import {
   BuyAndEarnPackageItem,
   INITIAL_BUY_AND_EARN_PACKAGES,
   ASSETS,
+  getPremiumMembershipConfig,
+  PremiumMembershipConfig,
 } from '../data/seedData';
 import { AuthSessionUser } from './AuthViews';
 import {
@@ -1043,14 +1045,17 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
 };
 
 // ============================================================================
-// 9. PREMIUM MEMBERSHIP — ৳299 SCREEN
+// 9. PREMIUM MEMBERSHIP — ADMIN CONFIGURABLE & CUSTOM POSTS SCREEN
 // ============================================================================
 interface MembershipScreenProps {
   user: AuthSessionUser;
   requests: MembershipRequestRecord[];
+  membershipConfig?: PremiumMembershipConfig;
   onSubmitMembership: (
     method: 'bKash' | 'Nagad' | 'Bank',
-    trxId: string
+    trxId: string,
+    amountBdt?: number,
+    planName?: string
   ) => Promise<void>;
   onBack: () => void;
 }
@@ -1058,9 +1063,17 @@ interface MembershipScreenProps {
 export const MembershipScreen: React.FC<MembershipScreenProps> = ({
   user,
   requests,
+  membershipConfig,
   onSubmitMembership,
   onBack,
 }) => {
+  const cfg = membershipConfig || getPremiumMembershipConfig();
+  const [selectedPlanTitle, setSelectedPlanTitle] = useState<string>(
+    cfg.headline
+  );
+  const [selectedPlanFee, setSelectedPlanFee] = useState<number>(
+    cfg.mainFeeBdt || 299
+  );
   const [payMethod, setPayMethod] = useState<'bKash' | 'Nagad' | 'Bank'>(
     'bKash'
   );
@@ -1107,10 +1120,15 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
     }
     setSubmitting(true);
     try {
-      await onSubmitMembership(payMethod, trxId.trim().toUpperCase());
+      await onSubmitMembership(
+        payMethod,
+        trxId.trim().toUpperCase(),
+        selectedPlanFee,
+        selectedPlanTitle
+      );
       setTrxId('');
       setMsg(
-        '⏳ আপনার ৳২৯৯ প্রিমিয়াম মেম্বারশিপ পেমেন্ট TrxID জমা হয়েছে! অ্যাডমিন যাচাই করে অনুমোদন (Approve) করলেই মেম্বারশিপ আনলক হবে।'
+        `⏳ আপনার "${selectedPlanTitle}" (৳${selectedPlanFee.toLocaleString('bn-BD')}) পেমেন্ট TrxID জমা হয়েছে! অ্যাডমিন যাচাই করে অনুমোদন (Approve) করলেই মেম্বারশিপ আনলক হবে।`
       );
     } finally {
       setSubmitting(false);
@@ -1119,24 +1137,131 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
 
   return (
     <div className="space-y-5 pb-8">
-      <div className="bg-gradient-to-br from-[#042F24] via-[#064E3B] to-[#047857] rounded-3xl p-6 text-white shadow-lg border border-[#D4AF37]/40">
+      <div className="bg-gradient-to-br from-[#042F24] via-[#064E3B] to-[#047857] rounded-3xl p-6 text-white shadow-lg border border-[#D4AF37]/40 space-y-2">
         <button
           onClick={onBack}
-          className="px-3 py-1.5 rounded-xl bg-white/15 text-white text-xs font-bold inline-flex items-center gap-1.5 mb-3 cursor-pointer"
+          className="px-3 py-1.5 rounded-xl bg-white/15 text-white text-xs font-bold inline-flex items-center gap-1.5 mb-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> প্রোফাইলে ফিরুন
         </button>
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2">
           <Crown className="w-6 h-6 text-[#FBBF24]" />
           <h2 className="text-xl sm:text-2xl font-extrabold">
-            প্রিমিয়াম উদ্যোক্তা মেম্বারশিপ — ৳২৯৯
+            {cfg.headline}
           </h2>
         </div>
         <p className="text-xs sm:text-sm text-emerald-100/90">
-          এককালীন মাত্র ৳২৯৯ পেমেন্টে সকল ভিআইপি ব্যবসার গাইড, পাইকারি সাপ্লায়ার
-          ডিরেক্টরি এবং রেফারেল বোনাস সুবিধা।
+          {cfg.subHeadline}
         </p>
+        {cfg.announcementPost && (
+          <div className="mt-2 p-3 rounded-2xl bg-amber-400/20 border border-amber-300/50 text-xs font-bold text-[#FDE68A]">
+            {cfg.announcementPost}
+          </div>
+        )}
       </div>
+
+      {/* Admin Published Custom Membership Posts / Offers */}
+      {cfg.customPosts && cfg.customPosts.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+              👑 অ্যাডমিন প্রকাশিত প্রিমিয়াম মেম্বারশিপ পোস্ট ও প্ল্যানসমূহ
+            </h3>
+            <span className="text-[11px] font-bold text-[#064E3B]">
+              যেকোনো প্ল্যান সিলেক্ট করে জয়েন করুন
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {cfg.customPosts.map((post) => {
+              const isSelected =
+                selectedPlanTitle === post.title &&
+                selectedPlanFee === post.feeBdt;
+              return (
+                <div
+                  key={post.id}
+                  className={`rounded-3xl p-4 border-2 transition space-y-2.5 flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-amber-50/90 border-[#D4AF37] shadow-md'
+                      : 'bg-white border-emerald-900/15 shadow-xs'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#064E3B] text-[#FDE68A] text-[10px] font-extrabold">
+                        {post.badge || 'প্রিমিয়াম মেম্বারশিপ পোস্ট'}
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-500">
+                        {post.publishedAt}
+                      </span>
+                    </div>
+                    <h4 className="text-sm sm:text-base font-black text-slate-900">
+                      {post.title}
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {post.subtitle}
+                    </p>
+                    <div className="grid grid-cols-3 gap-1.5 text-center pt-1">
+                      <div className="p-2 rounded-xl bg-white border border-slate-200">
+                        <span className="text-[9px] text-slate-500 block">
+                          মেম্বারশিপ ফি
+                        </span>
+                        <span className="text-xs font-black text-slate-900">
+                          ৳{post.feeBdt.toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <span className="text-[9px] text-emerald-700 block">
+                          বোনাস সুবিধা
+                        </span>
+                        <span className="text-xs font-black text-emerald-800">
+                          +৳{post.bonusBdt.toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-amber-50 border border-amber-300">
+                        <span className="text-[9px] text-amber-900 block">
+                          সম্ভাব্য দৈনিক আয়
+                        </span>
+                        <span className="text-xs font-black text-[#064E3B]">
+                          ৳{post.dailyIncomeEstimateBdt.toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                    </div>
+                    {Array.isArray(post.benefits) && post.benefits.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        {post.benefits.map((b, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-start gap-1.5 text-[11px] text-slate-700"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#059669] shrink-0 mt-0.5" />
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlanTitle(post.title);
+                      setSelectedPlanFee(post.feeBdt);
+                    }}
+                    className={`w-full py-2.5 rounded-xl text-xs font-extrabold cursor-pointer transition ${
+                      isSelected
+                        ? 'bg-[#064E3B] text-white'
+                        : 'bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950'
+                    }`}
+                  >
+                    {isSelected
+                      ? `✓ নির্বাচিত প্ল্যান (৳${post.feeBdt.toLocaleString('bn-BD')})`
+                      : `এই মেম্বারশিপ প্ল্যানটি নিন (৳${post.feeBdt.toLocaleString('bn-BD')})`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {errMsg && (
         <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 text-xs font-extrabold flex items-center gap-2">
@@ -1158,13 +1283,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
           <h3 className="text-base font-bold text-slate-900">
             প্রিমিয়াম মেম্বারশিপ সুবিধাসমূহ
           </h3>
-          {[
-            'সকল প্রিমিয়াম ও এক্সক্লুসিভ বিজনেস আইডিয়া আনলক',
-            'ঢাকা ও সারাদেশের ভেরিফায়েড পাইকারি সাপ্লায়ার গাইড',
-            'তাৎক্ষণিক +৫০ রিওয়ার্ড পয়েন্ট বোনাস',
-            'প্রতিটি সফল প্রিমিয়াম রেফারেলে +৳৫০ ওয়ালেট বোনাস ও +৩০ পয়েন্ট',
-            'এআই বিজনেস কনসালট্যান্ট ও ৭টি ক্যালকুলেটরে অগ্রাধিকার সুবিধা',
-          ].map((b, i) => (
+          {cfg.mainBenefits.map((b, i) => (
             <div key={i} className="flex items-start gap-2.5 text-xs text-slate-700">
               <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0 mt-0.5" />
               <span>{b}</span>
@@ -1177,10 +1296,10 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
           <h3 className="text-base font-bold text-slate-900">
             {user.membershipTier === 'premium'
               ? 'আপনি ইতিমধ্যে একজন প্রিমিয়াম সদস্য!'
-              : '৳২৯৯ পেমেন্ট ভেরিফিকেশন ফর্ম'}
+              : `${selectedPlanTitle} — ৳${selectedPlanFee.toLocaleString('bn-BD')} পেমেন্ট ভেরিফিকেশন ফর্ম`}
           </h3>
           <p className="text-xs text-slate-600 leading-relaxed">
-            নিচের পার্সোনাল নম্বরে <strong>৳২৯৯ Send Money (সেন্ড মানি)</strong> করে আপনার Transaction ID (TrxID) জমা দিন:
+            নিচের পার্সোনাল নম্বরে <strong>৳{selectedPlanFee.toLocaleString('bn-BD')} Send Money (সেন্ড মানি)</strong> করে আপনার Transaction ID (TrxID) জমা দিন:
           </p>
 
           <div className="space-y-2">
@@ -1265,7 +1384,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
             >
               {submitting
                 ? 'যাচাইয়ের জন্য পাঠানো হচ্ছে...'
-                : '৳২৯৯ পেমেন্ট জমা দিন'}
+                : `৳${selectedPlanFee.toLocaleString('bn-BD')} পেমেন্ট জমা দিন`}
             </button>
           </form>
         </div>

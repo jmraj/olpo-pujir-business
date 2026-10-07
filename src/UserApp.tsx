@@ -56,6 +56,13 @@ import {
   getPaymentGatewayAccounts,
   getSpecialPackage199Config,
   SpecialEntryPackageConfig,
+  INITIAL_PROFITABLE_WORK_ITEMS,
+  ProfitableWorkItem,
+  UserWorkSubmissionRecord,
+  ProfitModuleType,
+  getPremiumMembershipConfig,
+  savePremiumMembershipConfig,
+  PremiumMembershipConfig,
 } from './data/seedData';
 import {
   AuthViews,
@@ -239,6 +246,24 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
     }
   });
   const [pkg199TaskMsg, setPkg199TaskMsg] = useState<string | null>(null);
+  const [profitableWorkItems, setProfitableWorkItems] = useState<
+    ProfitableWorkItem[]
+  >(INITIAL_PROFITABLE_WORK_ITEMS);
+  const [userWorkSubmissions, setUserWorkSubmissions] = useState<
+    UserWorkSubmissionRecord[]
+  >([]);
+  const [selectedWorkModule, setSelectedWorkModule] = useState<
+    'ALL' | ProfitModuleType
+  >('ALL');
+  const [workProofInputs, setWorkProofInputs] = useState<Record<string, string>>(
+    {}
+  );
+  const [workSubmittingId, setWorkSubmittingId] = useState<string | null>(null);
+  const [workSuccessBanner, setWorkSuccessBanner] = useState<string | null>(
+    null
+  );
+  const [premiumMemConfig, setPremiumMemConfig] =
+    useState<PremiumMembershipConfig>(() => getPremiumMembershipConfig());
   const paymentAccounts = getPaymentGatewayAccounts();
 
   useEffect(() => {
@@ -689,11 +714,117 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
       () => {}
     );
 
+    const unsubWorkSubs = onSnapshot(
+      query(
+        collection(db, 'workSubmissions'),
+        where('userId', '==', currentUser.uid)
+      ),
+      (snap) => {
+        const subs: UserWorkSubmissionRecord[] = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: data.id,
+            userId: data.userId || currentUser.uid,
+            userName: data.userName || currentUser.fullName,
+            userPhone: data.userPhone || currentUser.phone,
+            taskId: data.taskId || '',
+            moduleType: (data.moduleType || 'micro_task') as ProfitModuleType,
+            moduleTitleBn: data.moduleTitleBn || 'কাজ ও প্রমোশন',
+            taskTitle: data.taskTitle || 'কাজের রিপোর্ট',
+            proofText: data.proofText || '',
+            adminGrossRevenueBdt: Number(data.adminGrossRevenueBdt) || 0,
+            userPayableBdt: Number(data.userPayableBdt) || 0,
+            adminNetProfitBdt: Number(data.adminNetProfitBdt) || 0,
+            paidToUserBdt: Number(data.paidToUserBdt) || 0,
+            status: (data.status || 'pending_admin_payout') as
+              | 'pending_admin_payout'
+              | 'paid_to_user'
+              | 'rejected',
+            createdAtLabel: 'লাইভ সংরক্ষিত',
+          };
+        });
+        setUserWorkSubmissions(subs);
+      },
+      () => {}
+    );
+
+    const unsubWorkCatalog = onSnapshot(
+      doc(db, 'appSettings', 'profitableWorkCatalog'),
+      (snap) => {
+        if (snap.exists() && Array.isArray(snap.data().items)) {
+          setProfitableWorkItems(snap.data().items as ProfitableWorkItem[]);
+        }
+      },
+      () => {}
+    );
+
+    const unsubPremMemCfg = onSnapshot(
+      doc(db, 'appSettings', 'premiumMembershipPost'),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as PremiumMembershipConfig;
+          const merged: PremiumMembershipConfig = {
+            ...getPremiumMembershipConfig(),
+            ...data,
+          };
+          setPremiumMemConfig(merged);
+          savePremiumMembershipConfig(merged);
+        }
+      },
+      () => {}
+    );
+
     return () => {
       unsubUser();
       unsubInvestments();
+      unsubWorkSubs();
+      unsubWorkCatalog();
+      unsubPremMemCfg();
     };
   }, [currentUser?.uid]);
+
+  const handleSubmitProfitableWork = async (workItem: ProfitableWorkItem) => {
+    if (!currentUser) return;
+    const rawProof = (workProofInputs[workItem.id] || '').trim();
+    if (rawProof.length < 4) {
+      setWorkSuccessBanner(
+        '⚠️ অনুগ্রহ করে কাজের সঠিক প্রুফ / কাস্টমারের তথ্য / লিংক কমপক্ষে ৪ অক্ষরে লিখুন।'
+      );
+      return;
+    }
+    setWorkSubmittingId(workItem.id);
+    const subId = `work-${Date.now()}`;
+    const newRecord: UserWorkSubmissionRecord = {
+      id: subId,
+      userId: currentUser.uid,
+      userName: currentUser.fullName,
+      userPhone: currentUser.phone,
+      taskId: workItem.id,
+      moduleType: workItem.moduleType,
+      moduleTitleBn: workItem.moduleTitleBn,
+      taskTitle: workItem.title,
+      proofText: rawProof,
+      adminGrossRevenueBdt: workItem.totalRevenueToAdminBdt,
+      userPayableBdt: workItem.userPayoutBdt,
+      adminNetProfitBdt: workItem.adminNetProfitBdt,
+      paidToUserBdt: 0,
+      status: 'pending_admin_payout',
+      createdAtLabel: 'এইমাত্র জমা দেওয়া হয়েছে',
+    };
+    setUserWorkSubmissions((prev) => [newRecord, ...prev]);
+    setWorkProofInputs((prev) => ({ ...prev, [workItem.id]: '' }));
+    try {
+      await setDoc(doc(db, 'workSubmissions', subId), {
+        ...newRecord,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch {}
+    setWorkSubmittingId(null);
+    setWorkSuccessBanner(
+      `✅ "${workItem.title}" সফলভাবে জমা হয়েছে! অ্যাডমিন অ্যাকাউন্টে মোট ৳${workItem.totalRevenueToAdminBdt.toLocaleString('bn-BD')} রেভিনিউ যুক্ত হয়েছে। অ্যাডমিন যাচাই করে সেখান থেকে আপনার প্রাপ্য ৳${workItem.userPayoutBdt.toLocaleString('bn-BD')} সরাসরি আপনার ওয়ালেটে পাঠিয়ে দেবেন।`
+    );
+  };
 
   const handleAuthenticated = (user: AuthSessionUser) => {
     setCurrentUser(user);
@@ -1675,6 +1806,266 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
               </div>
             </div>
 
+            {/* 6 Profitable Work & Earning Hub (User Works -> Admin Account Earns -> Admin Pays User) */}
+            <div className="rounded-[26px] bg-gradient-to-br from-[#022C22] via-[#064E3B] to-[#042F24] p-4 sm:p-5 text-white border-2 border-[#D4AF37] shadow-xl space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-3">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-black uppercase">
+                    💼 ৬টি নতুন কাজ ও আর্নিং হাব (ইউজার ও অ্যাডমিন প্রফিট সিস্টেম)
+                  </span>
+                  <h3 className="text-base sm:text-lg font-extrabold text-white mt-1">
+                    কাজ ও অর্ডার সম্পন্ন করে প্রতিদিন আয় করুন
+                  </h3>
+                  <p className="text-xs text-emerald-100/90">
+                    আপনি যেকোনো কাজ বা অর্ডার সম্পন্ন করলে তার মূল রেভিনিউ অ্যাডমিন অ্যাকাউন্টে জমা হবে এবং সেখান থেকে আপনার নির্ধারিত পারিশ্রমিক/কমিশন সরাসরি আপনার ওয়ালেটে পাবেন।
+                  </p>
+                </div>
+              </div>
+
+              {/* User's Work Earnings Summary Bar */}
+              {(() => {
+                const totalWorkDone = userWorkSubmissions.length;
+                const totalPayableToUser = userWorkSubmissions
+                  .filter((w) => w.status !== 'rejected')
+                  .reduce((s, w) => s + w.userPayableBdt, 0);
+                const totalReceivedFromAdmin = userWorkSubmissions.reduce(
+                  (s, w) => s + w.paidToUserBdt,
+                  0
+                );
+                const pendingFromAdmin = Math.max(
+                  0,
+                  totalPayableToUser - totalReceivedFromAdmin
+                );
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-2xl bg-white/10 border border-white/15">
+                      <span className="text-[10px] text-emerald-200 block">
+                        আমার জমা দেওয়া কাজ
+                      </span>
+                      <p className="text-base sm:text-lg font-black text-white mt-0.5">
+                        {totalWorkDone.toLocaleString('bn-BD')}টি
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-400/40">
+                      <span className="text-[10px] text-amber-200 block">
+                        কাজের মোট প্রাপ্য আয়
+                      </span>
+                      <p className="text-base sm:text-lg font-black text-[#FDE68A] mt-0.5">
+                        ৳{totalPayableToUser.toLocaleString('bn-BD')}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/40">
+                      <span className="text-[10px] text-emerald-200 block">
+                        ওয়ালেটে পেয়েছি
+                      </span>
+                      <p className="text-base sm:text-lg font-black text-emerald-300 mt-0.5">
+                        ৳{totalReceivedFromAdmin.toLocaleString('bn-BD')}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-purple-500/20 border border-purple-400/40">
+                      <span className="text-[10px] text-purple-200 block">
+                        অ্যাডমিন থেকে পাওয়া বাকি
+                      </span>
+                      <p className="text-base sm:text-lg font-black text-white mt-0.5">
+                        ৳{pendingFromAdmin.toLocaleString('bn-BD')}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Category Filter Tabs for the 6 Work Features */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {[
+                  { id: 'ALL', label: 'সবগুলো কাজ (৬টি বিভাগ)' },
+                  { id: 'micro_task', label: '১. মাইক্রো-টাস্ক ও অ্যাড' },
+                  { id: 'dropship_resell', label: '২. ড্রপশিপিং রিসেলিং' },
+                  { id: 'telecom_drive', label: '৩. ড্রাইভ প্যাক ও রিচার্জ' },
+                  { id: 'vip_package', label: '৪. ভিআইপি টিম কমিশন' },
+                  { id: 'skill_course', label: '৫. স্কিল ও অ্যাসাইনমেন্ট' },
+                  { id: 'seller_boost', label: '৬. সেলার বুস্ট ও এস্ক্রো' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedWorkModule(tab.id as 'ALL' | ProfitModuleType)
+                    }
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition cursor-pointer ${
+                      selectedWorkModule === tab.id
+                        ? 'bg-[#D4AF37] text-slate-950 shadow'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {workSuccessBanner && (
+                <div className="p-3 rounded-2xl bg-emerald-500/25 border border-emerald-300/60 text-xs font-bold text-white flex items-center justify-between gap-2">
+                  <span>{workSuccessBanner}</span>
+                  <button
+                    type="button"
+                    onClick={() => setWorkSuccessBanner(null)}
+                    className="text-[11px] underline shrink-0 cursor-pointer"
+                  >
+                    বন্ধ করুন
+                  </button>
+                </div>
+              )}
+
+              {/* Work Items Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {profitableWorkItems
+                  .filter(
+                    (w) =>
+                      selectedWorkModule === 'ALL' ||
+                      w.moduleType === selectedWorkModule
+                  )
+                  .map((work) => (
+                    <div
+                      key={work.id}
+                      className="rounded-2xl bg-white text-slate-900 p-4 border-2 border-amber-300/80 shadow-md flex flex-col justify-between gap-3"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#064E3B] text-[10px] font-extrabold">
+                            {work.moduleTitleBn}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 text-[10px] font-extrabold">
+                            ইউজার আয়: +৳{work.userPayoutBdt.toLocaleString('bn-BD')}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm font-black text-slate-900">
+                          {work.title}
+                        </h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {work.description}
+                        </p>
+
+                        <div className="p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-200 text-[11px] text-emerald-950 space-y-1">
+                          <div className="font-bold text-[#064E3B]">
+                            📋 কাজের নিয়ম ও টাকার হিসাব:
+                          </div>
+                          <p>{work.actionInstructions}</p>
+                          <div className="grid grid-cols-3 gap-1.5 pt-1 text-center">
+                            <div className="p-1.5 rounded-lg bg-white border border-emerald-200">
+                              <span className="text-[9px] text-slate-500 block">
+                                কাজের মোট ভ্যালু
+                              </span>
+                              <span className="text-xs font-black text-slate-900">
+                                ৳{work.totalRevenueToAdminBdt.toLocaleString('bn-BD')}
+                              </span>
+                            </div>
+                            <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-300">
+                              <span className="text-[9px] text-amber-900 font-bold block">
+                                আপনি পাবেন
+                              </span>
+                              <span className="text-xs font-black text-[#064E3B]">
+                                +৳{work.userPayoutBdt.toLocaleString('bn-BD')}
+                              </span>
+                            </div>
+                            <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-200">
+                              <span className="text-[9px] text-slate-600 block">
+                                প্ল্যাটফর্ম চার্জ
+                              </span>
+                              <span className="text-xs font-black text-slate-800">
+                                ৳{work.adminNetProfitBdt.toLocaleString('bn-BD')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-1 border-t border-slate-100">
+                        <input
+                          type="text"
+                          value={workProofInputs[work.id] || ''}
+                          onChange={(e) =>
+                            setWorkProofInputs((prev) => ({
+                              ...prev,
+                              [work.id]: e.target.value,
+                            }))
+                          }
+                          placeholder={work.proofPlaceholder}
+                          className="w-full h-9 px-3 rounded-xl border border-slate-300 bg-slate-50 text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#064E3B]"
+                        />
+                        <button
+                          type="button"
+                          disabled={workSubmittingId === work.id}
+                          onClick={() => handleSubmitProfitableWork(work)}
+                          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#064E3B] to-[#059669] hover:from-[#042F24] hover:to-[#047857] text-white text-xs font-extrabold shadow cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <span>
+                            {workSubmittingId === work.id
+                              ? 'জমা হচ্ছে...'
+                              : `✅ কাজ সম্পন্ন করে জমা দিন (পাবে +৳${work.userPayoutBdt.toLocaleString('bn-BD')})`}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {/* User's Submitted Work History & Live Payout Status */}
+              {userWorkSubmissions.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-black/30 border border-white/15 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-[#FDE68A]">
+                      📊 আমার জমা দেওয়া কাজের লাইভ স্ট্যাটাস ({userWorkSubmissions.length}টি)
+                    </h4>
+                    <span className="text-[10px] text-emerald-200">
+                      অ্যাডমিন অনুমোদন করলেই টাকা ওয়ালেটে যোগ হবে
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {userWorkSubmissions.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className="p-2.5 rounded-xl bg-white/10 border border-white/15 flex flex-wrap items-center justify-between gap-2 text-xs"
+                      >
+                        <div>
+                          <div className="font-bold text-white">
+                            {sub.taskTitle}{' '}
+                            <span className="text-[10px] text-amber-300">
+                              ({sub.moduleTitleBn})
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-emerald-100/80">
+                            প্রুফ: {sub.proofText} • আপনার প্রাপ্য:{' '}
+                            <strong className="text-[#FDE68A]">
+                              ৳{sub.userPayableBdt.toLocaleString('bn-BD')}
+                            </strong>{' '}
+                            • ওয়ালেটে পেয়েছেন:{' '}
+                            <strong className="text-emerald-300">
+                              ৳{sub.paidToUserBdt.toLocaleString('bn-BD')}
+                            </strong>
+                          </div>
+                        </div>
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                            sub.status === 'paid_to_user'
+                              ? 'bg-emerald-400/25 text-emerald-200 border border-emerald-400/40'
+                              : sub.status === 'rejected'
+                                ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                                : 'bg-amber-400/25 text-[#FDE68A] border border-amber-400/40'
+                          }`}
+                        >
+                          {sub.status === 'paid_to_user'
+                            ? '✅ ওয়ালেটে টাকা পেয়েছেন'
+                            : sub.status === 'rejected'
+                              ? '❌ বাতিল'
+                              : '⏳ অ্যাডমিন পেমেন্টের অপেক্ষায়'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Featured Business Ideas Section */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -1846,31 +2237,74 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
               </div>
             </div>
 
-            {/* Premium Membership Promo Card */}
-            {currentUser.membershipTier !== 'premium' && (
-              <div className="bg-gradient-to-r from-[#042F24] via-[#064E3B] to-[#047857] rounded-3xl p-5 text-white border border-[#D4AF37]/40 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Premium Membership Promo Card & Admin Published Custom Membership Posts */}
+            <div className="bg-gradient-to-r from-[#042F24] via-[#064E3B] to-[#047857] rounded-3xl p-5 text-white border-2 border-[#D4AF37]/60 shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold">
-                    <Crown className="w-3 h-3" /> প্রিমিয়াম মেম্বারশিপ — মাত্র
-                    ৳২৯৯
+                    <Crown className="w-3 h-3" /> প্রিমিয়াম মেম্বারশিপ ও ভিআইপি প্ল্যান — মাত্র ৳{premiumMemConfig.mainFeeBdt.toLocaleString('bn-BD')}
                   </span>
-                  <h3 className="text-base sm:text-lg font-bold">
-                    সকল ভিআইপি বিজনেস গাইড, পাইকারি সাপ্লায়ার ও রেফারেল বোনাস
-                    আনলক করুন!
+                  <h3 className="text-base sm:text-lg font-extrabold">
+                    {premiumMemConfig.headline}
                   </h3>
-                  <p className="text-xs text-emerald-100/85">
-                    সক্রিয় করলেই পাচ্ছেন +৫০ পয়েন্ট এবং প্রতি প্রিমিয়াম রেফারেলে
-                    নগদ +৳৫০ ওয়ালেট বোনাস।
+                  <p className="text-xs text-emerald-100/90">
+                    {premiumMemConfig.subHeadline}
                   </p>
+                  {premiumMemConfig.announcementPost && (
+                    <p className="text-xs font-bold text-[#FDE68A] pt-0.5">
+                      {premiumMemConfig.announcementPost}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => setActiveScreen('membership')}
-                  className="px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:brightness-105 text-slate-950 font-extrabold text-xs shrink-0 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:brightness-105 text-slate-950 font-extrabold text-xs shrink-0 cursor-pointer shadow"
                 >
-                  ৳২৯৯ মেম্বারশিপ নিন
+                  প্রিমিয়াম মেম্বারশিপ দেখুন →
                 </button>
               </div>
-            )}
+
+              {premiumMemConfig.customPosts &&
+                premiumMemConfig.customPosts.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/15">
+                    {premiumMemConfig.customPosts.slice(0, 4).map((post) => (
+                      <div
+                        key={post.id}
+                        className="p-3.5 rounded-2xl bg-white/10 border border-[#D4AF37]/40 flex flex-col justify-between gap-2"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="px-2 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold">
+                              {post.badge || 'প্রিমিয়াম পোস্ট'}
+                            </span>
+                            <span className="text-xs font-black text-[#FDE68A]">
+                              ফি: ৳{post.feeBdt.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-extrabold text-white mt-1.5">
+                            {post.title}
+                          </h4>
+                          <p className="text-[11px] text-emerald-100/85 mt-0.5 line-clamp-2">
+                            {post.subtitle}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[11px]">
+                          <span className="text-emerald-200 font-bold">
+                            বোনাস: +৳{post.bonusBdt.toLocaleString('bn-BD')} • দৈনিক আয়: ~৳{post.dailyIncomeEstimateBdt.toLocaleString('bn-BD')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveScreen('membership')}
+                            className="px-3 py-1 rounded-lg bg-white text-[#064E3B] font-extrabold text-[11px] cursor-pointer"
+                          >
+                            জয়েন করুন
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
           </div>
         )}
 
@@ -2537,18 +2971,21 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
           </div>
         )}
 
-        {/* 9. MEMBERSHIP SCREEN (৳299) */}
+        {/* 9. MEMBERSHIP SCREEN (Admin Configurable & Custom Posts) */}
         {activeScreen === 'membership' && (
           <MembershipScreen
             user={currentUser}
             requests={membershipRequests}
-            onSubmitMembership={async (method, trxId) => {
+            membershipConfig={premiumMemConfig}
+            onSubmitMembership={async (method, trxId, amountBdt, planName) => {
               const reqId = 'mem_' + Date.now();
+              const finalFee = Number(amountBdt) || premiumMemConfig.mainFeeBdt || 299;
+              const finalPlan = planName || premiumMemConfig.headline;
               const newReq: MembershipRequestRecord = {
                 id: reqId,
                 userId: currentUser.uid,
                 userName: currentUser.fullName,
-                amountBdt: 299,
+                amountBdt: finalFee,
                 paymentMethod: method,
                 transactionReference: trxId,
                 status: 'pending',
@@ -2560,7 +2997,8 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
                   id: reqId,
                   userId: currentUser.uid,
                   userName: currentUser.fullName,
-                  amountBdt: 299,
+                  planName: finalPlan,
+                  amountBdt: finalFee,
                   paymentMethod: method,
                   transactionReference: trxId,
                   status: 'pending',
@@ -2709,6 +3147,12 @@ export default function UserApp({ onOpenSeparateAdminApp }: UserAppProps) {
           <AdviceHubScreen
             articles={INITIAL_ADVICE_ARTICLES}
             onBack={() => setActiveScreen('home')}
+            onOpenAiConsultant={(promptText) => {
+              if (promptText) {
+                setAiInitialPrompt(promptText);
+              }
+              setActiveScreen('ai_consultant');
+            }}
           />
         )}
 
