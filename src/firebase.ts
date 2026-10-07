@@ -318,15 +318,48 @@ export const getAccessToken = async (): Promise<string | null> => {
   return cachedAccessToken;
 };
 
+export function normalizeLoginIdentifier(
+  rawInput: string,
+  isAdminMode = false
+): string {
+  const trimmed = rawInput.trim().toLowerCase();
+  if (!trimmed) return '';
+  if (
+    isAdminMode &&
+    (trimmed === 'admin' ||
+      trimmed === 'superadmin' ||
+      trimmed === '01700000000')
+  ) {
+    return 'admin@alpopujirbebsha.app';
+  }
+  if (trimmed.includes('@')) {
+    return trimmed;
+  }
+  const cleanId = trimmed.replace(/[^a-z0-9._-]/g, '');
+  return `${cleanId || 'user'}@user.alpopujirbebsha.app`;
+}
+
+export function normalizeFirebasePassword(rawPassword: string): string {
+  const trimmed = rawPassword;
+  if (trimmed.length > 0 && trimmed.length < 6) {
+    return `${trimmed}#apb26`;
+  }
+  return trimmed;
+}
+
 export const registerWithEmail = async (
   fullName: string,
-  email: string,
-  password: string
+  emailOrId: string,
+  password: string,
+  phoneFallback?: string
 ): Promise<User> => {
+  const identifierToUse = emailOrId.trim() || phoneFallback?.trim() || '';
+  const normalizedEmail = normalizeLoginIdentifier(identifierToUse, false);
+  const normalizedPass = normalizeFirebasePassword(password);
   const credential = await createUserWithEmailAndPassword(
     auth,
-    email.trim(),
-    password
+    normalizedEmail,
+    normalizedPass
   );
   if (fullName.trim()) {
     await updateProfile(credential.user, { displayName: fullName.trim() });
@@ -335,37 +368,62 @@ export const registerWithEmail = async (
 };
 
 export const loginWithEmail = async (
-  email: string,
-  password: string
+  emailOrId: string,
+  password: string,
+  isAdminMode = false
 ): Promise<User> => {
-  const cleanEmail = email.trim();
+  const normalizedEmail = normalizeLoginIdentifier(emailOrId, isAdminMode);
+  const normalizedPass = normalizeFirebasePassword(password);
+
   try {
     const credential = await signInWithEmailAndPassword(
       auth,
-      cleanEmail,
-      password
+      normalizedEmail,
+      normalizedPass
     );
     return credential.user;
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code || '';
-    const isBootstrapAdmin =
-      (cleanEmail.toLowerCase() === 'admin@alpopujirbebsha.app' ||
-        cleanEmail.toLowerCase() === 'hasanmehedy670@gmail.com') &&
-      password === 'Admin@2025';
-    if (
-      isBootstrapAdmin &&
-      (code === 'auth/user-not-found' || code === 'auth/invalid-credential')
-    ) {
-      const created = await createUserWithEmailAndPassword(
-        auth,
-        cleanEmail,
-        password
-      );
-      await updateProfile(created.user, {
-        displayName: 'প্রধান অ্যাডমিন (Super Admin)',
-      });
-      return created.user;
+
+    // In Admin Mode, rely strictly on Firebase Authentication without client-side auto-creation or hardcoded credentials
+    if (isAdminMode) {
+      throw err;
     }
+
+    // Prevent migrating reserved admin emails via user flow
+    if (
+      normalizedEmail === 'admin@alpopujirbebsha.app' ||
+      normalizedEmail === 'hasanmehedy670@gmail.com'
+    ) {
+      throw err;
+    }
+
+    // User App: Migrate pre-update user account if it does not exist in Firebase Auth yet.
+    // If it ALREADY exists in Firebase Auth, createUserWithEmailAndPassword throws 'auth/email-already-in-use',
+    // which proves the user typed the wrong password for an existing account.
+    if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+      try {
+        const migrated = await createUserWithEmailAndPassword(
+          auth,
+          normalizedEmail,
+          normalizedPass
+        );
+        const defaultName = emailOrId.includes('@')
+          ? emailOrId.split('@')[0]
+          : `উদ্যোক্তা (${emailOrId.trim()})`;
+        await updateProfile(migrated.user, {
+          displayName: defaultName,
+        });
+        return migrated.user;
+      } catch (createErr: unknown) {
+        const createCode = (createErr as { code?: string })?.code || '';
+        if (createCode === 'auth/email-already-in-use') {
+          throw { code: 'auth/wrong-password' };
+        }
+        throw err;
+      }
+    }
+
     throw err;
   }
 };

@@ -95,6 +95,25 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
   const [adminSecurityLogs, setAdminSecurityLogs] = useState<
     AdminAuditLogRecord[]
   >([]);
+  const [adminInvestments, setAdminInvestments] = useState<
+    Array<{
+      id: string;
+      userId: string;
+      userName: string;
+      userPhone: string;
+      projectId: string;
+      projectTitle: string;
+      categoryName: string;
+      amountBdt: number;
+      expectedMonthlyProfitBdt: number;
+      profitSharePercent: string;
+      durationMonths: number;
+      paymentMethod: string;
+      transactionId: string;
+      status: 'pending' | 'active' | 'completed' | 'rejected';
+      totalProfitPaidBdt: number;
+    }>
+  >([]);
 
   const writeAdminAuditLog = async (
     action: string,
@@ -178,18 +197,48 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
     if (!currentUser || !currentUser.isAuthorizedAdmin) return;
 
     const loadAdminData = async () => {
-      // Categories
+      // Categories (merged with seed categories and photos, including 3 investment categories)
       try {
         const catSnap = await getDocs(collection(db, 'categories'));
         if (!catSnap.empty) {
           const loadedCats = catSnap.docs.map(
             (d) => d.data() as CategoryItem
           );
-          setCategories(loadedCats.sort((a, b) => a.order - b.order));
+          const mergedCats: CategoryItem[] = loadedCats.map((cat) => {
+            const seedMatch = INITIAL_CATEGORIES.find(
+              (sc) => sc.id === cat.id || sc.nameBn === cat.nameBn
+            );
+            return {
+              ...seedMatch,
+              ...cat,
+              imageUrl: cat.imageUrl || seedMatch?.imageUrl || '',
+              fallbackImageUrl:
+                cat.fallbackImageUrl || seedMatch?.fallbackImageUrl || '',
+              expectedRoi: cat.expectedRoi || seedMatch?.expectedRoi,
+              minInvestBdt: cat.minInvestBdt || seedMatch?.minInvestBdt,
+              shortDesc: cat.shortDesc || seedMatch?.shortDesc,
+            };
+          });
+          for (const seedCat of INITIAL_CATEGORIES) {
+            if (
+              !mergedCats.some(
+                (c) => c.id === seedCat.id || c.nameBn === seedCat.nameBn
+              )
+            ) {
+              mergedCats.push(seedCat);
+              try {
+                await setDoc(doc(db, 'categories', seedCat.id), {
+                  ...seedCat,
+                  createdAt: serverTimestamp(),
+                });
+              } catch {}
+            }
+          }
+          setCategories(mergedCats.sort((a, b) => a.order - b.order));
         }
       } catch {}
 
-      // Business Ideas
+      // Business Ideas (merged with seed ideas including 3 investment categories)
       try {
         const ideaSnap = await getDocs(
           query(
@@ -198,7 +247,20 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
           )
         );
         if (!ideaSnap.empty) {
-          setIdeas(ideaSnap.docs.map((d) => d.data() as BusinessIdeaItem));
+          const loadedIdeas = ideaSnap.docs.map((d) => d.data() as BusinessIdeaItem);
+          const mergedIdeas = [...loadedIdeas];
+          for (const seedIdea of INITIAL_BUSINESS_IDEAS) {
+            if (!mergedIdeas.some((i) => i.id === seedIdea.id)) {
+              mergedIdeas.push(seedIdea);
+              try {
+                await setDoc(doc(db, 'businessIdeas', seedIdea.id), {
+                  ...seedIdea,
+                  createdAt: serverTimestamp(),
+                });
+              } catch {}
+            }
+          }
+          setIdeas(mergedIdeas);
         }
       } catch {}
 
@@ -353,6 +415,34 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
               transactionReference: data.transactionReference || '',
               status: data.status || 'pending',
               createdAt: 'Firestore সংরক্ষিত',
+            };
+          })
+        );
+      } catch {}
+
+      // All Investments & Buy-and-Earn Package Orders
+      try {
+        const invSnap = await getDocs(collection(db, 'investments'));
+        setAdminInvestments(
+          invSnap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: data.id,
+              userId: data.userId || '',
+              userName: data.userName || 'উদ্যোক্তা সদস্য',
+              userPhone: data.userPhone || '01700000000',
+              projectId: data.projectId || '',
+              projectTitle: data.projectTitle || 'ইনভেস্টমেন্ট প্রজেক্ট',
+              categoryName: data.categoryName || 'ইনভেস্টমেন্ট',
+              amountBdt: Number(data.amountBdt) || 0,
+              expectedMonthlyProfitBdt:
+                Number(data.expectedMonthlyProfitBdt) || 0,
+              profitSharePercent: data.profitSharePercent || '১৫%',
+              durationMonths: Number(data.durationMonths) || 1,
+              paymentMethod: data.paymentMethod || 'bKash',
+              transactionId: data.transactionId || '',
+              status: data.status || 'pending',
+              totalProfitPaidBdt: Number(data.totalProfitPaidBdt) || 0,
             };
           })
         );
@@ -842,18 +932,26 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
         );
       }}
       onAddCategory={async (cat) => {
-        setCategories((prev) => [...prev, cat]);
+        setCategories((prev) =>
+          prev.some((c) => c.id === cat.id)
+            ? prev.map((c) => (c.id === cat.id ? cat : c))
+            : [...prev, cat]
+        );
         try {
-          await setDoc(doc(db, 'categories', cat.id), {
-            ...cat,
-            createdAt: serverTimestamp(),
-          });
+          await setDoc(
+            doc(db, 'categories', cat.id),
+            {
+              ...cat,
+              createdAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
         } catch {}
         await writeAdminAuditLog(
-          'ADD_CATEGORY',
+          'SAVE_CATEGORY',
           cat.id,
-          `নতুন ক্যাটাগরি যোগ: ${cat.nameBn}`,
-          'none',
+          `ক্যাটাগরি সংরক্ষণ/সম্পাদনা: ${cat.nameBn}`,
+          'category',
           cat.nameBn
         );
       }}
@@ -912,6 +1010,97 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
       }}
       auditLogs={auditLogs}
       adminSecurityLogs={adminSecurityLogs}
+      investments={adminInvestments}
+      onManageInvestment={async (id, action) => {
+        const target = adminInvestments.find((i) => i.id === id);
+        if (!target) return;
+
+        if (action === 'approve' || action === 'reject') {
+          const nextStatus = action === 'approve' ? 'active' : 'rejected';
+          setAdminInvestments((prev) =>
+            prev.map((i) => (i.id === id ? { ...i, status: nextStatus } : i))
+          );
+          try {
+            await updateDoc(doc(db, 'investments', id), {
+              status: nextStatus,
+              updatedAt: serverTimestamp(),
+            });
+          } catch {}
+          await writeAdminAuditLog(
+            action === 'approve' ? 'APPROVE_INVESTMENT' : 'REJECT_INVESTMENT',
+            id,
+            `ইনভেস্টমেন্ট/প্যাকেজ (${target.projectTitle}): ${nextStatus}`,
+            target.status,
+            nextStatus
+          );
+          return;
+        }
+
+        if (action === 'pay_profit') {
+          const totalPayout =
+            Number(target.amountBdt) + Number(target.expectedMonthlyProfitBdt);
+          setAdminInvestments((prev) =>
+            prev.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    status: 'completed',
+                    totalProfitPaidBdt:
+                      (Number(i.totalProfitPaidBdt) || 0) + totalPayout,
+                  }
+                : i
+            )
+          );
+          setAdminUsers((prev) =>
+            prev.map((u) =>
+              u.uid === target.userId
+                ? { ...u, walletBalance: (u.walletBalance || 0) + totalPayout }
+                : u
+            )
+          );
+          try {
+            await updateDoc(doc(db, 'investments', id), {
+              status: 'completed',
+              totalProfitPaidBdt:
+                (Number(target.totalProfitPaidBdt) || 0) + totalPayout,
+              updatedAt: serverTimestamp(),
+            });
+          } catch {}
+          try {
+            const txId = 'tx_inv_' + Date.now();
+            await runTransaction(db, async (transaction) => {
+              const userRef = doc(db, 'users', target.userId);
+              const uSnap = await transaction.get(userRef);
+              if (uSnap.exists()) {
+                const curBal = Number(uSnap.data().walletBalance) || 0;
+                transaction.update(userRef, {
+                  walletBalance: curBal + totalPayout,
+                  updatedAt: serverTimestamp(),
+                });
+              }
+              const txRef = doc(db, 'transactions', txId);
+              transaction.set(txRef, {
+                id: txId,
+                userId: target.userId,
+                userName: target.userName,
+                type: 'reward',
+                amountBdt: totalPayout,
+                pointsDelta: 0,
+                reason: `প্যাকেজ/ইনভেস্টমেন্ট আসল + লাভ ফেরত: ${target.projectTitle}`,
+                adminId: currentUser.uid,
+                createdAt: serverTimestamp(),
+              });
+            });
+          } catch {}
+          await writeAdminAuditLog(
+            'PAY_INVESTMENT_PROFIT',
+            id,
+            `ইউজারের ওয়ালেটে আসল+লাভ জমা: ৳${totalPayout} (${target.projectTitle})`,
+            target.status,
+            'completed'
+          );
+        }
+      }}
       onExitAdmin={() => {
         if (onExitToUserPreview) {
           onExitToUserPreview();

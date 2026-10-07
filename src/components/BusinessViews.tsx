@@ -102,10 +102,13 @@ export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState<
-    'all' | 'popular' | 'new' | 'special' | 'existing'
+    'all' | 'investment' | 'popular' | 'new' | 'special' | 'existing'
   >('all');
 
   const enabledCategories = categories.filter((c) => c.enabled);
+  const investmentCategories = enabledCategories.filter(
+    (c) => c.group === 'investment'
+  );
   const filtered = enabledCategories.filter((c) => {
     const matchesSearch =
       c.nameBn.toLowerCase().includes(search.toLowerCase()) ||
@@ -121,11 +124,11 @@ export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#FDE68A] border border-[#D4AF37]/40 mb-1.5">
-              ৩০+ ব্যবসার খাত
+              {enabledCategories.length}+ ভেরিফায়েড ব্যবসার খাত • ৩টি ইনভেস্টমেন্ট ক্যাটাগরি
             </span>
-            <h2 className="text-xl font-bold">সকল ব্যবসার ক্যাটাগরি</h2>
+            <h2 className="text-xl font-bold">সকল ব্যবসার ক্যাটাগরি ও ইনভেস্টমেন্ট</h2>
             <p className="text-xs text-emerald-100/80 mt-0.5">
-              আপনার পছন্দ ও দক্ষতা অনুযায়ী ব্যবসার খাত নির্বাচন করুন
+              নিজে ব্যবসা শুরু করুন অথবা আমাদের ৩টি ভেরিফায়েড ইনভেস্টমেন্ট খাতে বিনিয়োগ করে মাসিক লাভ নিন
             </p>
           </div>
           <button
@@ -143,16 +146,92 @@ export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ক্যাটাগরি খুঁজুন (যেমন: খাবার, অনলাইন, কৃষি, চা)..."
+            placeholder="ক্যাটাগরি খুঁজুন (যেমন: ইনভেস্টমেন্ট, অ্যাগ্রো, খাবার, অনলাইন)..."
             className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/12 border border-white/20 text-white placeholder:text-emerald-100/60 text-xs focus:outline-none focus:bg-white/20"
           />
         </div>
       </div>
 
+      {/* Featured 3 Investment Categories Section */}
+      {investmentCategories.length > 0 && groupFilter === 'all' && !search && (
+        <div className="bg-gradient-to-br from-[#022C22] via-[#064E3B] to-[#042F24] rounded-3xl p-4 sm:p-5 border border-[#D4AF37]/40 shadow-xl text-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold">
+                <Coins className="w-3 h-3" /> নতুন যুক্ত ৩টি ইনভেস্টমেন্ট ব্যবসা ক্যাটাগরি
+              </span>
+              <h3 className="text-base sm:text-lg font-extrabold text-white mt-1">
+                সরাসরি ইনভেস্ট করে ব্যবসা করুন (প্রফিট শেয়ারিং)
+              </h3>
+            </div>
+            <button
+              onClick={() => setGroupFilter('investment')}
+              className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-[#FDE68A] text-xs font-bold border border-white/20 cursor-pointer"
+            >
+              শুধু ইনভেস্টমেন্ট দেখুন →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            {investmentCategories.map((invCat) => (
+              <div
+                key={invCat.id}
+                onClick={() => onSelectCategory(invCat.nameBn)}
+                className="bg-white/10 hover:bg-white/15 backdrop-blur-xs rounded-2xl overflow-hidden border border-[#D4AF37]/40 transition flex flex-col justify-between cursor-pointer group"
+              >
+                <div className="relative h-32 w-full overflow-hidden bg-emerald-950">
+                  <img
+                    src={invCat.imageUrl}
+                    alt={invCat.nameBn}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (
+                        invCat.fallbackImageUrl &&
+                        target.src !== invCat.fallbackImageUrl
+                      ) {
+                        target.src = invCat.fallbackImageUrl;
+                      }
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
+                  <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold shadow">
+                    {invCat.expectedRoi || 'মাসিক ১২%–২০% মুনাফা'}
+                  </div>
+                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-white">
+                    <span className="text-[11px] font-bold text-[#FDE68A]">
+                      সর্বনিম্ন: ৳{(invCat.minInvestBdt || 3000).toLocaleString('bn-BD')}
+                    </span>
+                    <span className="text-[10px] font-bold bg-emerald-600/90 px-2 py-0.5 rounded-md">
+                      {invCat.ideaCount}টি প্রজেক্ট
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3.5 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-white group-hover:text-[#FDE68A] transition">
+                      {invCat.nameBn}
+                    </h4>
+                    <p className="text-[11px] text-emerald-100/80 mt-1 line-clamp-2 leading-relaxed">
+                      {invCat.shortDesc || invCat.nameEn}
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[11px] font-bold text-[#FDE68A]">
+                    <span>প্রজেক্ট ও ইনভেস্ট দেখুন</span>
+                    <span>→</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Group Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         {[
           { id: 'all', label: 'সব ক্যাটাগরি' },
+          { id: 'investment', label: '💰 ইনভেস্টমেন্ট ব্যবসা (৩টি)' },
           { id: 'popular', label: 'জনপ্রিয় খাত' },
           { id: 'special', label: 'বিশেষ (নারী/শিক্ষার্থী/ঘরোয়া)' },
           { id: 'new', label: 'আধুনিক ও ডিজিটাল' },
@@ -172,7 +251,7 @@ export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({
         ))}
       </div>
 
-      {/* Category Grid */}
+      {/* Category Grid with Realistic Category Photos */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-3xl p-8 text-center border border-slate-200/70">
           <p className="text-sm font-bold text-slate-700">
@@ -183,28 +262,64 @@ export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
           {filtered.map((cat) => (
             <button
               key={cat.id}
               onClick={() => onSelectCategory(cat.nameBn)}
-              className="bg-white rounded-[20px] p-4 border border-emerald-900/10 shadow-xs hover:shadow-md hover:border-[#059669] transition text-left flex flex-col justify-between group cursor-pointer"
+              className={`bg-white rounded-[22px] overflow-hidden border shadow-xs hover:shadow-md transition text-left flex flex-col justify-between group cursor-pointer ${
+                cat.group === 'investment'
+                  ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/40'
+                  : 'border-emerald-900/10 hover:border-[#059669]'
+              }`}
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/80 border border-emerald-200/70 flex items-center justify-center text-[#064E3B] group-hover:bg-[#064E3B] group-hover:text-[#FBBF24] transition">
-                  <CategoryIcon name={cat.iconName} className="w-5 h-5" />
+              <div className="relative h-28 sm:h-32 w-full bg-emerald-950 overflow-hidden">
+                <img
+                  src={cat.imageUrl}
+                  alt={cat.nameBn}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (
+                      cat.fallbackImageUrl &&
+                      target.src !== cat.fallbackImageUrl
+                    ) {
+                      target.src = cat.fallbackImageUrl;
+                    }
+                  }}
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute top-2.5 left-2.5 w-8 h-8 rounded-xl bg-white/95 text-[#064E3B] flex items-center justify-center shadow">
+                  <CategoryIcon name={cat.iconName} className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/70 tabular-nums">
-                  {cat.ideaCount}টি আইডিয়া
+                <span
+                  className={`absolute top-2.5 right-2.5 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow tabular-nums ${
+                    cat.group === 'investment'
+                      ? 'bg-[#D4AF37] text-slate-950'
+                      : 'bg-emerald-950/85 text-[#FDE68A] border border-white/15'
+                  }`}
+                >
+                  {cat.group === 'investment'
+                    ? 'ইনভেস্টমেন্ট'
+                    : `${cat.ideaCount}টি আইডিয়া`}
                 </span>
+                {cat.expectedRoi && (
+                  <div className="absolute bottom-2 left-2.5 right-2.5">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-600/95 text-white">
+                      {cat.expectedRoi}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#064E3B] line-clamp-1">
-                  {cat.nameBn}
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
-                  {cat.nameEn}
-                </p>
+              <div className="p-3.5 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#064E3B] line-clamp-1">
+                    {cat.nameBn}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                    {cat.shortDesc || cat.nameEn}
+                  </p>
+                </div>
               </div>
             </button>
           ))}
@@ -566,6 +681,7 @@ interface BusinessIdeaDetailScreenProps {
   onOpenChecklist: () => void;
   onAskAiAboutIdea: (promptText: string) => void;
   onUpgradePremium: () => void;
+  onInvestInIdea?: (idea: BusinessIdeaItem) => void;
 }
 
 export const BusinessIdeaDetailScreen: React.FC<
@@ -580,6 +696,7 @@ export const BusinessIdeaDetailScreen: React.FC<
   onOpenChecklist,
   onAskAiAboutIdea,
   onUpgradePremium,
+  onInvestInIdea,
 }) => {
   return (
     <div className="space-y-5 pb-8">
@@ -678,6 +795,30 @@ export const BusinessIdeaDetailScreen: React.FC<
               </div>
             </div>
           </div>
+
+          {/* Direct Investment Action Banner */}
+          {onInvestInIdea && (
+            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-[#042F24] via-[#064E3B] to-[#047857] text-white border border-[#D4AF37]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold mb-1">
+                  <Coins className="w-3 h-3" /> হালাল প্রফিট শেয়ারিং ও সরাসরি ইনভেস্টমেন্ট
+                </span>
+                <h4 className="text-sm font-bold text-white">
+                  এই প্রজেক্টে বিনিয়োগ করে মাসিক মুনাফা পেতে চান?
+                </h4>
+                <p className="text-[11px] text-emerald-100/85 mt-0.5">
+                  সর্বনিম্ন ৳{idea.minInvestmentBdt.toLocaleString('bn-BD')} থেকে ইনভেস্ট করুন • সম্ভাব্য মাসিক লাভ: {idea.estimatedProfit}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onInvestInIdea(idea)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F59E0B] to-[#D97706] text-slate-950 font-extrabold text-xs shadow-lg hover:brightness-105 transition cursor-pointer shrink-0"
+              >
+                💰 এখনই ইনভেস্ট করুন →
+              </button>
+            </div>
+          )}
 
           {/* Interactive Tool Shortcuts */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-4 pt-4 border-t border-slate-100">

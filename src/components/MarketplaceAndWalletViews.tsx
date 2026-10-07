@@ -30,7 +30,12 @@ import {
   XCircle,
   Sparkles,
 } from 'lucide-react';
-import { MarketplaceProductItem, ASSETS } from '../data/seedData';
+import {
+  MarketplaceProductItem,
+  BuyAndEarnPackageItem,
+  INITIAL_BUY_AND_EARN_PACKAGES,
+  ASSETS,
+} from '../data/seedData';
 import { AuthSessionUser } from './AuthViews';
 import {
   WithdrawalRecord,
@@ -73,6 +78,7 @@ interface MarketplaceScreenProps {
   onSelectProduct: (product: MarketplaceProductItem) => void;
   onSelectSeller: (sellerId: string, sellerName: string, sellerPhone: string, location: string) => void;
   onOpenMyOrders: () => void;
+  onSelectBuyPackage?: (pkg: BuyAndEarnPackageItem) => void;
   onAddSellerProduct: (
     prod: Omit<
       MarketplaceProductItem,
@@ -88,9 +94,10 @@ export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
   onSelectProduct,
   onSelectSeller,
   onOpenMyOrders,
+  onSelectBuyPackage,
   onAddSellerProduct,
 }) => {
-  const [mode, setMode] = useState<'buyer' | 'seller'>('buyer');
+  const [mode, setMode] = useState<'buyer' | 'buy_and_earn' | 'seller'>('buyer');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
@@ -167,12 +174,11 @@ export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
               <Store className="w-5 h-5 text-[#FBBF24]" /> বিজনেস মার্কেটপ্লেস
             </h2>
             <p className="text-xs text-emerald-100/80 mt-0.5">
-              প্যাকেজিং কিট, কাঁচামাল ও পাইকারি পণ্য কিনুন অথবা নিজের পণ্য
-              বিক্রি করুন
+              প্যাকেজিং কিট ও কাঁচামাল কিনুন, পণ্য কিনে অটো-রিসেল লাভ নিন অথবা নিজের পণ্য বিক্রি করুন
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-black/25 p-1 rounded-2xl border border-white/10">
+          <div className="flex flex-wrap items-center gap-1.5 bg-black/25 p-1 rounded-2xl border border-white/10">
             <button
               onClick={() => setMode('buyer')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
@@ -182,6 +188,16 @@ export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
               }`}
             >
               পণ্যসমূহ
+            </button>
+            <button
+              onClick={() => setMode('buy_and_earn')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                mode === 'buy_and_earn'
+                  ? 'bg-[#D4AF37] text-slate-950'
+                  : 'text-[#FDE68A] hover:text-white'
+              }`}
+            >
+              🛒 কিনে লাভ করুন
             </button>
             <button
               onClick={() => setMode('seller')}
@@ -218,7 +234,107 @@ export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
         </div>
       )}
 
-      {mode === 'buyer' ? (
+      {mode === 'buy_and_earn' ? (
+        <div className="bg-white rounded-3xl p-5 border-2 border-[#059669]/30 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-extrabold">
+                🛒 পাইকারি পণ্য ও খামার ইউনিট কিনে অটো-রিসেল লাভ
+              </span>
+              <h3 className="text-lg font-extrabold text-slate-900 mt-1">
+                টাকা দিয়ে পণ্য/ইউনিট কিনুন — বিক্রির পর আসল + মুনাফা নিন
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                চাইলে অ্যাপেই অটো-রিসেল করে ওয়ালেটে আসল + লাভ নিতে পারবেন, অথবা নিজের ঠিকানায় পাইকারি ডেলিভারি নিতে পারবেন।
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {INITIAL_BUY_AND_EARN_PACKAGES.map((pkg) => {
+              const totalReturn = pkg.unitPriceBdt + pkg.userProfitBdt;
+              return (
+                <div
+                  key={pkg.id}
+                  className="rounded-2xl overflow-hidden border border-emerald-900/15 bg-gradient-to-b from-white to-emerald-50/30 shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="relative h-36 w-full bg-emerald-950 overflow-hidden">
+                      <img
+                        src={pkg.imageUrl}
+                        alt={pkg.title}
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (
+                            pkg.fallbackImageUrl &&
+                            t.src !== pkg.fallbackImageUrl
+                          ) {
+                            t.src = pkg.fallbackImageUrl;
+                          }
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
+                      <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold">
+                        {pkg.modelBadge}
+                      </span>
+                      <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-emerald-700/95 text-white text-[10px] font-bold">
+                        মেয়াদ: {pkg.durationLabel}
+                      </span>
+                      <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-white">
+                        <span className="text-xs font-extrabold text-[#FDE68A]">
+                          ক্রয়মূল্য: ৳{pkg.unitPriceBdt.toLocaleString('bn-BD')}
+                        </span>
+                        <span className="text-[10px] font-extrabold bg-amber-500 text-slate-950 px-2 py-0.5 rounded-md">
+                          লাভ: +৳{pkg.userProfitBdt.toLocaleString('bn-BD')} ({pkg.userProfitPercent}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5">
+                      <h4 className="text-sm font-extrabold text-slate-900">
+                        {pkg.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                        {pkg.shortDesc}
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5 mt-3 p-2.5 rounded-xl bg-white border border-emerald-200/80 text-center">
+                        <div>
+                          <span className="text-[9px] text-slate-500 block">ক্রয়মূল্য</span>
+                          <span className="text-xs font-extrabold text-slate-900">
+                            ৳{pkg.unitPriceBdt.toLocaleString('bn-BD')}
+                          </span>
+                        </div>
+                        <div className="border-x border-slate-100">
+                          <span className="text-[9px] text-slate-500 block">আপনার লাভ</span>
+                          <span className="text-xs font-extrabold text-[#059669]">
+                            +৳{pkg.userProfitBdt.toLocaleString('bn-BD')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-500 block">মোট পাবেন</span>
+                          <span className="text-xs font-extrabold text-amber-700">
+                            ৳{totalReturn.toLocaleString('bn-BD')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-3.5 pb-3.5">
+                    <button
+                      type="button"
+                      onClick={() => onSelectBuyPackage && onSelectBuyPackage(pkg)}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#064E3B] to-[#059669] text-white text-xs font-extrabold shadow hover:brightness-105 transition cursor-pointer"
+                    >
+                      🛒 কিনুন ও লাভ করুন (+৳{pkg.userProfitBdt.toLocaleString('bn-BD')})
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : mode === 'buyer' ? (
         <>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />

@@ -1,28 +1,54 @@
-const makeSvgDataUri = (title: string, subtitle: string, accent = '#D4AF37') =>
+export const makeSvgDataUri = (
+  title: string,
+  subtitle: string,
+  accent = '#D4AF37',
+  themeBg1 = '#042F24',
+  themeBg2 = '#065F46'
+) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
       <defs>
         <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#042F24"/>
+          <stop offset="0%" stop-color="${themeBg1}"/>
           <stop offset="55%" stop-color="#064E3B"/>
-          <stop offset="100%" stop-color="#047857"/>
+          <stop offset="100%" stop-color="${themeBg2}"/>
+        </linearGradient>
+        <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#FEF08A"/>
+          <stop offset="50%" stop-color="#FACC15"/>
+          <stop offset="100%" stop-color="#D97706"/>
         </linearGradient>
       </defs>
       <rect width="800" height="500" fill="url(#bg)"/>
-      <circle cx="680" cy="110" r="140" fill="${accent}" opacity="0.14"/>
-      <circle cx="120" cy="400" r="180" fill="#10B981" opacity="0.12"/>
-      <rect x="48" y="48" width="704" height="404" rx="28" fill="none" stroke="${accent}" stroke-width="2" stroke-opacity="0.35"/>
-      <text x="80" y="230" fill="#FDE68A" font-family="sans-serif" font-size="38" font-weight="bold">${title}</text>
-      <text x="80" y="285" fill="#D1FAE5" font-family="sans-serif" font-size="22">${subtitle}</text>
-      <text x="80" y="395" fill="#A7F3D0" font-family="sans-serif" font-size="16" font-weight="bold">অল্প পুঁজির ব্যবসা • ছোট পুঁজি • বড় সম্ভাবনা</text>
+      <circle cx="690" cy="110" r="165" fill="${accent}" opacity="0.18"/>
+      <circle cx="110" cy="410" r="190" fill="#10B981" opacity="0.16"/>
+      <g opacity="0.24" transform="translate(530, 140)">
+        <rect x="0" y="130" width="32" height="90" rx="6" fill="url(#gold)"/>
+        <rect x="46" y="95" width="32" height="125" rx="6" fill="url(#gold)"/>
+        <rect x="92" y="55" width="32" height="165" rx="6" fill="url(#gold)"/>
+        <rect x="138" y="15" width="32" height="205" rx="6" fill="url(#gold)"/>
+        <circle cx="185" cy="175" r="38" fill="url(#gold)"/>
+        <text x="185" y="188" text-anchor="middle" fill="#042F24" font-family="sans-serif" font-size="38" font-weight="bold">৳</text>
+      </g>
+      <rect x="38" y="38" width="724" height="424" rx="28" fill="none" stroke="${accent}" stroke-width="2.5" stroke-opacity="0.45"/>
+      <rect x="68" y="72" width="190" height="36" rx="18" fill="${accent}" opacity="0.22"/>
+      <text x="163" y="96" text-anchor="middle" fill="#FDE68A" font-family="sans-serif" font-size="16" font-weight="bold">অল্প পুঁজির ব্যবসা</text>
+      <text x="68" y="215" fill="#FFFFFF" font-family="sans-serif" font-size="40" font-weight="bold">${title}</text>
+      <text x="68" y="270" fill="#FDE68A" font-family="sans-serif" font-size="24" font-weight="bold">${subtitle}</text>
+      <text x="68" y="405" fill="#A7F3D0" font-family="sans-serif" font-size="18" font-weight="bold">ভেরিফায়েড বিজনেস ও হালাল ইনভেস্টমেন্ট প্ল্যাটফর্ম</text>
     </svg>`
   )}`;
 
-const heroBannerImg = makeSvgDataUri('অল্প পুঁজির ব্যবসা', 'ছোট পুঁজি • বড় সম্ভাবনা');
-const spiceIdeaImg = makeSvgDataUri('মসলা গুঁড়া ও প্যাকেজিং', 'খাঁটি মসলা প্রস্তুত ও বাজারজাতকরণ');
-const teaIdeaImg = makeSvgDataUri('প্রিমিয়াম চা ও কফি স্টল', 'তন্দুরি ও মালাই চা স্টার্টআপ');
-const packagingKitImg = makeSvgDataUri('ফুড গ্রেড প্যাকেজিং কিট', 'ইমপোর্টেড স্ট্যান্ড-আপ পাউচ ও সিলার');
-const entrepreneurAvatarImg = makeSvgDataUri('সফল উদ্যোক্তা', 'অল্প পুঁজির ব্যবসা কমিউনিটি');
+const heroBannerImg =
+  'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1000&q=80';
+const spiceIdeaImg =
+  'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80';
+const teaIdeaImg =
+  'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=800&q=80';
+const packagingKitImg =
+  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80';
+const entrepreneurAvatarImg =
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80';
 
 export const ASSETS = {
   heroBannerImg,
@@ -30,6 +56,7 @@ export const ASSETS = {
   teaIdeaImg,
   packagingKitImg,
   entrepreneurAvatarImg,
+  fallbackBannerSvg: makeSvgDataUri('অল্প পুঁজির ব্যবসা', 'ছোট পুঁজি • বড় সম্ভাবনা'),
 };
 
 export interface CategoryItem {
@@ -37,10 +64,17 @@ export interface CategoryItem {
   nameBn: string;
   nameEn: string;
   iconName: string;
-  group: 'existing' | 'new' | 'popular' | 'special';
+  imageUrl?: string;
+  fallbackImageUrl?: string;
+  group: 'investment' | 'existing' | 'new' | 'popular' | 'special';
   ideaCount: number;
   enabled: boolean;
   order: number;
+  roiHighlight?: string;
+  minInvestHighlight?: string;
+  expectedRoi?: string;
+  minInvestBdt?: number;
+  shortDesc?: string;
 }
 
 export interface BusinessIdeaItem {
@@ -67,6 +101,29 @@ export interface BusinessIdeaItem {
   isPremium: boolean;
   isFeatured: boolean;
   rating: number;
+  isInvestmentProject?: boolean;
+  roiPercent?: string;
+  durationMonths?: string;
+  targetCapitalBdt?: number;
+  raisedCapitalBdt?: number;
+}
+
+export interface UserInvestmentRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  projectId: string;
+  projectTitle: string;
+  categoryNameBn: string;
+  amountBdt: number;
+  expectedReturnPercent: number;
+  expectedProfitBdt: number;
+  durationMonths: number;
+  paymentMethod: 'bKash' | 'Nagad' | 'Rocket' | 'Wallet';
+  transactionId: string;
+  status: 'pending' | 'active' | 'completed' | 'rejected';
+  createdAt: string;
 }
 
 export interface ChecklistItem {
@@ -126,40 +183,194 @@ export interface ResourceSiteItem {
   badge: string;
 }
 
-export const INITIAL_CATEGORIES: CategoryItem[] = [
-  { id: 'cat-1', nameBn: 'খাবার ও পানীয়', nameEn: 'Food & Beverage', iconName: 'Utensils', group: 'existing', ideaCount: 18, enabled: true, order: 1 },
-  { id: 'cat-2', nameBn: 'পোশাক ও ফ্যাশন', nameEn: 'Apparel & Fashion', iconName: 'Shirt', group: 'existing', ideaCount: 15, enabled: true, order: 2 },
-  { id: 'cat-3', nameBn: 'অনলাইন ব্যবসা', nameEn: 'Online Business', iconName: 'Globe', group: 'existing', ideaCount: 22, enabled: true, order: 3 },
-  { id: 'cat-4', nameBn: 'কৃষি', nameEn: 'Agriculture', iconName: 'Sprout', group: 'existing', ideaCount: 14, enabled: true, order: 4 },
-  { id: 'cat-5', nameBn: 'মাছ চাষ', nameEn: 'Fisheries', iconName: 'Fish', group: 'existing', ideaCount: 9, enabled: true, order: 5 },
-  { id: 'cat-6', nameBn: 'বিউটি ও পার্লার', nameEn: 'Beauty & Parlor', iconName: 'Sparkles', group: 'existing', ideaCount: 11, enabled: true, order: 6 },
-  { id: 'cat-7', nameBn: 'ফাস্ট ফুড', nameEn: 'Fast Food', iconName: 'Pizza', group: 'popular', ideaCount: 16, enabled: true, order: 7 },
-  { id: 'cat-8', nameBn: 'চা/কফি', nameEn: 'Tea & Coffee', iconName: 'Coffee', group: 'popular', ideaCount: 12, enabled: true, order: 8 },
-  { id: 'cat-9', nameBn: 'কসমেটিকস', nameEn: 'Cosmetics', iconName: 'Heart', group: 'popular', ideaCount: 13, enabled: true, order: 9 },
-  { id: 'cat-10', nameBn: 'হাঁস-মুরগি', nameEn: 'Poultry Farming', iconName: 'Bird', group: 'existing', ideaCount: 10, enabled: true, order: 10 },
-  { id: 'cat-11', nameBn: 'গবাদিপশু', nameEn: 'Livestock', iconName: 'ShieldCheck', group: 'existing', ideaCount: 8, enabled: true, order: 11 },
-  { id: 'cat-12', nameBn: 'ফুল ও নার্সারি', nameEn: 'Nursery & Flowers', iconName: 'Flower2', group: 'new', ideaCount: 9, enabled: true, order: 12 },
-  { id: 'cat-13', nameBn: 'হস্তশিল্প', nameEn: 'Handicrafts', iconName: 'Scissors', group: 'new', ideaCount: 14, enabled: true, order: 13 },
-  { id: 'cat-14', nameBn: 'গিফট ব্যবসা', nameEn: 'Gift & Custom Box', iconName: 'Gift', group: 'new', ideaCount: 11, enabled: true, order: 14 },
-  { id: 'cat-15', nameBn: 'মোবাইল ও ইলেকট্রনিক্স', nameEn: 'Mobile & Electronics', iconName: 'Smartphone', group: 'new', ideaCount: 17, enabled: true, order: 15 },
-  { id: 'cat-16', nameBn: 'কম্পিউটার ও প্রিন্টিং', nameEn: 'Computer & Printing', iconName: 'Printer', group: 'new', ideaCount: 12, enabled: true, order: 16 },
-  { id: 'cat-17', nameBn: 'ফেসবুক ব্যবসা', nameEn: 'F-Commerce', iconName: 'Share2', group: 'popular', ideaCount: 25, enabled: true, order: 17 },
-  { id: 'cat-18', nameBn: 'ই-কমার্স', nameEn: 'E-Commerce', iconName: 'ShoppingBag', group: 'popular', ideaCount: 19, enabled: true, order: 18 },
-  { id: 'cat-19', nameBn: 'ফ্রিল্যান্সিং', nameEn: 'Freelancing', iconName: 'Laptop', group: 'new', ideaCount: 15, enabled: true, order: 19 },
-  { id: 'cat-20', nameBn: 'ডিজিটাল সার্ভিস', nameEn: 'Digital Services', iconName: 'Zap', group: 'new', ideaCount: 13, enabled: true, order: 20 },
-  { id: 'cat-21', nameBn: 'হোম সার্ভিস', nameEn: 'Home Services', iconName: 'Wrench', group: 'new', ideaCount: 10, enabled: true, order: 21 },
-  { id: 'cat-22', nameBn: 'ডেলিভারি', nameEn: 'Local Delivery', iconName: 'Truck', group: 'new', ideaCount: 8, enabled: true, order: 22 },
-  { id: 'cat-23', nameBn: 'কুরিয়ার', nameEn: 'Courier Agency', iconName: 'Package', group: 'new', ideaCount: 7, enabled: true, order: 23 },
-  { id: 'cat-24', nameBn: 'দোকানভিত্তিক ব্যবসা', nameEn: 'Retail Shop', iconName: 'Store', group: 'existing', ideaCount: 20, enabled: true, order: 24 },
-  { id: 'cat-25', nameBn: 'ঘরে বসে ব্যবসা', nameEn: 'Home-based Business', iconName: 'Home', group: 'special', ideaCount: 24, enabled: true, order: 25 },
-  { id: 'cat-26', nameBn: 'মৌসুমি ব্যবসা', nameEn: 'Seasonal Business', iconName: 'Sun', group: 'special', ideaCount: 11, enabled: true, order: 26 },
-  { id: 'cat-27', nameBn: 'গ্রামভিত্তিক ব্যবসা', nameEn: 'Rural Business', iconName: 'Trees', group: 'special', ideaCount: 16, enabled: true, order: 27 },
-  { id: 'cat-28', nameBn: 'শহরভিত্তিক ব্যবসা', nameEn: 'Urban Business', iconName: 'Building2', group: 'special', ideaCount: 18, enabled: true, order: 28 },
-  { id: 'cat-29', nameBn: 'নারীদের জন্য ব্যবসা', nameEn: 'Women Entrepreneurs', iconName: 'Award', group: 'special', ideaCount: 21, enabled: true, order: 29 },
-  { id: 'cat-30', nameBn: 'শিক্ষার্থীদের জন্য ব্যবসা', nameEn: 'Student Business', iconName: 'GraduationCap', group: 'special', ideaCount: 17, enabled: true, order: 30 },
+export function getCategoryFallbackImage(nameBn: string, nameEn = ''): string {
+  return makeSvgDataUri(nameBn, nameEn || 'অল্প পুঁজির ব্যবসা ক্যাটাগরি', '#FACC15');
+}
+
+const RAW_INITIAL_CATEGORIES: CategoryItem[] = [
+  // ৩টি বিশেষ ইনভেস্টমেন্ট করে ব্যবসা করার ক্যাটাগরি (Admin & User Investment Categories)
+  {
+    id: 'inv-cat-1',
+    nameBn: 'কৃষি ও অ্যাগ্রো ইনভেস্টমেন্ট',
+    nameEn: 'Agro & Fisheries Investment',
+    iconName: 'Sprout',
+    imageUrl: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=700&q=80',
+    group: 'investment',
+    ideaCount: 8,
+    enabled: true,
+    order: 1,
+    roiHighlight: '১৮% – ২২% মুনাফা',
+    minInvestHighlight: 'সর্বনিম্ন ৳২,০০০',
+    expectedRoi: '১৮% – ২২% হালাল মুনাফা',
+    minInvestBdt: 2000,
+    shortDesc: 'শরীয়াহ সম্মত মুদারাবা পদ্ধতিতে অ্যাগ্রো, ডেইরি ও মৎস্য খামারে নিরাপদ বিনিয়োগ।',
+  },
+  {
+    id: 'inv-cat-2',
+    nameBn: 'ক্ষুদ্র শিল্প ও ফ্যাক্টরি ইনভেস্টমেন্ট',
+    nameEn: 'SME & Factory Investment',
+    iconName: 'Building2',
+    imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=700&q=80',
+    group: 'investment',
+    ideaCount: 7,
+    enabled: true,
+    order: 2,
+    roiHighlight: '২০% – ২৫% মুনাফা',
+    minInvestHighlight: 'সর্বনিম্ন ৳৫,০০০',
+    expectedRoi: '২০% – ২৫% প্রফিট শেয়ার',
+    minInvestBdt: 5000,
+    shortDesc: 'বিএসটিআই অনুমোদিত মসলা, ফুড প্রসেসিং ও ক্ষুদ্র কারখানায় ওয়ার্কিং ক্যাপিটাল বিনিয়োগ।',
+  },
+  {
+    id: 'inv-cat-3',
+    nameBn: 'ই-কমার্স ও রিটেইল চেইন ইনভেস্টমেন্ট',
+    nameEn: 'E-Commerce & Retail Investment',
+    iconName: 'Store',
+    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=700&q=80',
+    group: 'investment',
+    ideaCount: 9,
+    enabled: true,
+    order: 3,
+    roiHighlight: '১৬% – ২১% মুনাফা',
+    minInvestHighlight: 'সর্বনিম্ন ৳৩,০০০',
+    expectedRoi: '১৬% – ২১% মাসিক/ত্রৈমাসিক লাভ',
+    minInvestBdt: 3000,
+    shortDesc: 'হট-সেলিং ই-কমার্স ইমপোর্ট ব্যাচ ও সুপারশপ রিটেইল চেইনের ইনভেন্টরিতে বিনিয়োগ।',
+  },
+
+  // ৩০টি ব্যবসার ক্যাটাগরি (প্রতিটির সাথে বাস্তবসম্মত ছবি যুক্ত)
+  { id: 'cat-1', nameBn: 'খাবার ও পানীয়', nameEn: 'Food & Beverage', iconName: 'Utensils', imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 18, enabled: true, order: 4 },
+  { id: 'cat-2', nameBn: 'পোশাক ও ফ্যাশন', nameEn: 'Apparel & Fashion', iconName: 'Shirt', imageUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 15, enabled: true, order: 5 },
+  { id: 'cat-3', nameBn: 'অনলাইন ব্যবসা', nameEn: 'Online Business', iconName: 'Globe', imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 22, enabled: true, order: 6 },
+  { id: 'cat-4', nameBn: 'কৃষি', nameEn: 'Agriculture', iconName: 'Sprout', imageUrl: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 14, enabled: true, order: 7 },
+  { id: 'cat-5', nameBn: 'মাছ চাষ', nameEn: 'Fisheries', iconName: 'Fish', imageUrl: 'https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 9, enabled: true, order: 8 },
+  { id: 'cat-6', nameBn: 'বিউটি ও পার্লার', nameEn: 'Beauty & Parlor', iconName: 'Sparkles', imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 11, enabled: true, order: 9 },
+  { id: 'cat-7', nameBn: 'ফাস্ট ফুড', nameEn: 'Fast Food', iconName: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?auto=format&fit=crop&w=600&q=80', group: 'popular', ideaCount: 16, enabled: true, order: 10 },
+  { id: 'cat-8', nameBn: 'চা/কফি', nameEn: 'Tea & Coffee', iconName: 'Coffee', imageUrl: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80', group: 'popular', ideaCount: 12, enabled: true, order: 11 },
+  { id: 'cat-9', nameBn: 'কসমেটিকস', nameEn: 'Cosmetics', iconName: 'Heart', imageUrl: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=600&q=80', group: 'popular', ideaCount: 13, enabled: true, order: 12 },
+  { id: 'cat-10', nameBn: 'হাঁস-মুরগি', nameEn: 'Poultry Farming', iconName: 'Bird', imageUrl: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 10, enabled: true, order: 13 },
+  { id: 'cat-11', nameBn: 'গবাদিপশু', nameEn: 'Livestock', iconName: 'ShieldCheck', imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 8, enabled: true, order: 14 },
+  { id: 'cat-12', nameBn: 'ফুল ও নার্সারি', nameEn: 'Nursery & Flowers', iconName: 'Flower2', imageUrl: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 9, enabled: true, order: 15 },
+  { id: 'cat-13', nameBn: 'হস্তশিল্প', nameEn: 'Handicrafts', iconName: 'Scissors', imageUrl: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 14, enabled: true, order: 16 },
+  { id: 'cat-14', nameBn: 'গিফট ব্যবসা', nameEn: 'Gift & Custom Box', iconName: 'Gift', imageUrl: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 11, enabled: true, order: 17 },
+  { id: 'cat-15', nameBn: 'মোবাইল ও ইলেকট্রনিক্স', nameEn: 'Mobile & Electronics', iconName: 'Smartphone', imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 17, enabled: true, order: 18 },
+  { id: 'cat-16', nameBn: 'কম্পিউটার ও প্রিন্টিং', nameEn: 'Computer & Printing', iconName: 'Printer', imageUrl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 12, enabled: true, order: 19 },
+  { id: 'cat-17', nameBn: 'ফেসবুক ব্যবসা', nameEn: 'F-Commerce', iconName: 'Share2', imageUrl: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=600&q=80', group: 'popular', ideaCount: 25, enabled: true, order: 20 },
+  { id: 'cat-18', nameBn: 'ই-কমার্স', nameEn: 'E-Commerce', iconName: 'ShoppingBag', imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=600&q=80', group: 'popular', ideaCount: 19, enabled: true, order: 21 },
+  { id: 'cat-19', nameBn: 'ফ্রিল্যান্সিং', nameEn: 'Freelancing', iconName: 'Laptop', imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 15, enabled: true, order: 22 },
+  { id: 'cat-20', nameBn: 'ডিজিটাল সার্ভিস', nameEn: 'Digital Services', iconName: 'Zap', imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 13, enabled: true, order: 23 },
+  { id: 'cat-21', nameBn: 'হোম সার্ভিস', nameEn: 'Home Services', iconName: 'Wrench', imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 10, enabled: true, order: 24 },
+  { id: 'cat-22', nameBn: 'ডেলিভারি', nameEn: 'Local Delivery', iconName: 'Truck', imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 8, enabled: true, order: 25 },
+  { id: 'cat-23', nameBn: 'কুরিয়ার', nameEn: 'Courier Agency', iconName: 'Package', imageUrl: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=600&q=80', group: 'new', ideaCount: 7, enabled: true, order: 26 },
+  { id: 'cat-24', nameBn: 'দোকানভিত্তিক ব্যবসা', nameEn: 'Retail Shop', iconName: 'Store', imageUrl: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=600&q=80', group: 'existing', ideaCount: 20, enabled: true, order: 27 },
+  { id: 'cat-25', nameBn: 'ঘরে বসে ব্যবসা', nameEn: 'Home-based Business', iconName: 'Home', imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=600&q=80', group: 'special', ideaCount: 24, enabled: true, order: 28 },
+  { id: 'cat-26', nameBn: 'মৌসুমি ব্যবসা', nameEn: 'Seasonal Business', iconName: 'Sun', imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80', group: 'special', ideaCount: 11, enabled: true, order: 29 },
+  { id: 'cat-27', nameBn: 'গ্রামভিত্তিক ব্যবসা', nameEn: 'Rural Business', iconName: 'Trees', imageUrl: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80', group: 'special', ideaCount: 16, enabled: true, order: 30 },
+  { id: 'cat-28', nameBn: 'শহরভিত্তিক ব্যবসা', nameEn: 'Urban Business', iconName: 'Building2', imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80', group: 'special', ideaCount: 18, enabled: true, order: 31 },
+  { id: 'cat-29', nameBn: 'নারীদের জন্য ব্যবসা', nameEn: 'Women Entrepreneurs', iconName: 'Award', imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80', group: 'special', ideaCount: 21, enabled: true, order: 32 },
+  { id: 'cat-30', nameBn: 'শিক্ষার্থীদের জন্য ব্যবসা', nameEn: 'Student Business', iconName: 'GraduationCap', imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80', group: 'special', ideaCount: 17, enabled: true, order: 33 },
 ];
 
+export const INITIAL_CATEGORIES: CategoryItem[] = RAW_INITIAL_CATEGORIES.map(
+  (c) => ({
+    ...c,
+    imageUrl: c.imageUrl || getCategoryFallbackImage(c.nameBn, c.nameEn),
+    fallbackImageUrl:
+      c.fallbackImageUrl || getCategoryFallbackImage(c.nameBn, c.nameEn),
+  })
+);
+
 export const INITIAL_BUSINESS_IDEAS: BusinessIdeaItem[] = [
+  {
+    id: 'inv-idea-1',
+    title: 'স্মার্ট ডেইরি ও গরু মোটাতাজাকরণ অ্যাগ্রো ইনভেস্টমেন্ট প্রজেক্ট',
+    category: 'কৃষি ও অ্যাগ্রো ইনভেস্টমেন্ট',
+    imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=800&q=80',
+    shortDescription: 'শরীয়াহ সম্মত মুদারাবা পদ্ধতিতে আধুনিক খামারে গরু মোটাতাজাকরণ ও দুগ্ধ প্রকল্পে বিনিয়োগ করে প্রতি ৬ মাসে ১৮%–২২% হালাল মুনাফা অর্জন।',
+    requiredInvestment: '৳২,০০০ – ৳৫০,০০০ (শেয়ার ইনভেস্টমেন্ট)',
+    minInvestmentBdt: 2000,
+    expectedDailySales: '৳১৫,০০০ – ৳২৫,০০০ (খামার আয়)',
+    expectedMonthlyRevenue: '১৮% – ২২% নিট মুনাফা (৬ মাসে)',
+    estimatedExpenses: 'খামার পরিচালনা ও ভেটেরিনারি বীমা অন্তর্ভুক্ত',
+    estimatedProfit: 'প্রতি ৳১০,০০০ বিনিয়োগে ৳১,৮০০ – ৳২,২০০ মুনাফা',
+    difficulty: 'সহজ',
+    requiredEquipment: 'নিজে কোনো যন্ত্রপাতি কিনতে হবে না; নিবন্ধিত অ্যাগ্রো খামার সরাসরি পরিচালনা করবে।',
+    requiredLocation: 'সিরাজগঞ্জ ও বগুড়ার নিজস্ব ভেরিফায়েড অ্যাগ্রো ফার্ম (অ্যাপ থেকে লাইভ ট্র্যাকিং)।',
+    requiredSkills: 'কোনো পূর্ব অভিজ্ঞতার প্রয়োজন নেই; অ্যাপের ড্যাশবোর্ডে বিনিয়োগ ও মুনাফা সরাসরি যুক্ত হবে।',
+    startupSteps: '১. প্রজেক্ট ও বিনিয়োগের পরিমাণ (সর্বনিম্ন ৳২,০০০) নির্বাচন করুন\n২. বিকাশ/নগদ বা ওয়ালেট থেকে ইনভেস্টমেন্ট কনফার্ম করুন\n৩. অ্যাডমিন ভেরিফিকেশনের পর ডিজিটাল ইনভেস্টমেন্ট সার্টিফিকেট গ্রহণ\n৪. মেয়াদ শেষে আসল ও মুনাফা সরাসরি ওয়ালেটে বা বিকাশে উত্তোলন।',
+    productSourcing: 'উন্নত জাতের দেশি ও শাহীওয়াল গরু এবং নিজস্ব ঘাস ও দানাদার খাদ্য উৎপাদন।',
+    marketingStrategy: 'কোরবানি হাট, সুপারশপ মিট সাপ্লাই এবং পাইকারি মাংস ব্যবসায়ীদের কাছে সরাসরি বিক্রয়।',
+    risk: 'পশুচিকিৎসক তত্ত্বাবধান ও লাইভস্টক ইন্স্যুরেন্স থাকায় মূলধন ঝুঁকি অত্যন্ত সীমিত।',
+    tips: 'একসাথে বড় অংক বিনিয়োগ না করে ৩টি ভিন্ন ইনভেস্টমেন্ট ক্যাটাগরিতে ভাগ করে বিনিয়োগ করা সবচেয়ে বুদ্ধিমানের কাজ।',
+    isPremium: false,
+    isFeatured: true,
+    rating: 4.9,
+    isInvestmentProject: true,
+    roiPercent: '২০%',
+    durationMonths: '৬ মাস',
+    targetCapitalBdt: 500000,
+    raisedCapitalBdt: 345000,
+  },
+  {
+    id: 'inv-idea-2',
+    title: 'অটোমেটিক মসলা ও ফুড প্যাকেজিং ফ্যাক্টরি ইনভেস্টমেন্ট',
+    category: 'ক্ষুদ্র শিল্প ও ফ্যাক্টরি ইনভেস্টমেন্ট',
+    imageUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
+    shortDescription: 'বিএসটিআই অনুমোদিত গুঁড়া মসলা, সরিষার তেল ও কনজিউমার ফুড প্রসেসিং কারখানার ওয়ার্কিং ক্যাপিটালে বিনিয়োগ করে প্রতি মাসে লভ্যাংশ আয়।',
+    requiredInvestment: '৳৫,০০০ – ৳১,০০,০০০ (ফ্যাক্টরি শেয়ার)',
+    minInvestmentBdt: 5000,
+    expectedDailySales: '৳৪০,০০০ – ৳৭৫,০০০ (ফ্যাক্টরি ডিস্ট্রিবিউশন)',
+    expectedMonthlyRevenue: '২০% – ২৫% মুনাফা (৬ মাসে)',
+    estimatedExpenses: 'কাঁচামাল ক্রয়, ফ্যাক্টরি প্যাকিং ও ডিলার সাপ্লাই খরচ অন্তর্ভুক্ত',
+    estimatedProfit: 'প্রতি ৳১০,০০০ বিনিয়োগে ৳২,০০০ – ৳২,৫০০ মুনাফা',
+    difficulty: 'সহজ',
+    requiredEquipment: 'কারখানার অটোমেটিক পালভারাইজার, অয়েল এক্সপেলার ও পাউচ প্যাকিং মেশিন দ্বারা পরিচালিত।',
+    requiredLocation: 'নারায়ণগঞ্জ ও গাজীপুর বিসিক শিল্প নগরী প্রজেক্ট।',
+    requiredSkills: 'উদ্যোক্তা ইনভেস্টর হিসেবে শুধু ক্যাপিটাল সাপোর্ট প্রদান।',
+    startupSteps: '১. ক্ষুদ্র শিল্প ক্যাটাগরিতে আপনার পছন্দের অংক (সর্বনিম্ন ৳৫,০০০) ইনভেস্ট করুন\n২. ট্রানজেকশন আইডি দিয়ে রিকোয়েস্ট সাবমিট করুন\n৩. প্রতি মাসের বিক্রি থেকে অর্জিত লভ্যাংশ সরাসরি অ্যাপ ওয়ালেটে গ্রহণ করুন।',
+    productSourcing: 'বগুড়ার মরিচ, পাবনার সরিষা ও দিনাজপুরের সুগন্ধি চাল সরাসরি কৃষক পর্যায় থেকে সংগ্রহ।',
+    marketingStrategy: 'সারাদেশে ৪৫০+ মুদি দোকান ও ডিলার নেটওয়ার্কে নিয়মিত পাইকারি সরবরাহ।',
+    risk: 'নিত্যপ্রয়োজনীয় ভোগ্যপণ্য হওয়ায় সারা বছরই স্থিতিশীল চাহিদা ও নিশ্চিত ক্যাশ-ফ্লো থাকে।',
+    tips: '৬ মাসের মেয়াদে বিনিয়োগ করলে বোনাস পয়েন্ট ও অগ্রাধিকার লভ্যাংশ পাওয়া যায়।',
+    isPremium: false,
+    isFeatured: true,
+    rating: 4.9,
+    isInvestmentProject: true,
+    roiPercent: '২২%',
+    durationMonths: '৬ মাস',
+    targetCapitalBdt: 800000,
+    raisedCapitalBdt: 610000,
+  },
+  {
+    id: 'inv-idea-3',
+    title: 'ই-কমার্স ইমপোর্ট ব্যাচ ও সুপারশপ চেইন ইনভেস্টমেন্ট',
+    category: 'ই-কমার্স ও রিটেইল চেইন ইনভেস্টমেন্ট',
+    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80',
+    shortDescription: 'চায়না ও স্থানীয় গার্মেন্টস থেকে হট-সেলিং পণ্য বাল্ক ইমপোর্ট এবং সুপারশপ চেইনের ইনভেন্টরিতে বিনিয়োগ করে ৩ মাসে দ্রুত রিটার্ন।',
+    requiredInvestment: '৳৩,০০০ – ৳৭৫,০০০ (ইনভেন্টরি শেয়ার)',
+    minInvestmentBdt: 3000,
+    expectedDailySales: '৳৩০,০০০ – ৳৬০,০০০ (অনলাইন ও শোরুম সেল)',
+    expectedMonthlyRevenue: '১৬% – ২১% মুনাফা (৩–৬ মাসে)',
+    estimatedExpenses: 'কাস্টমস, ওয়্যারহাউস ও কুরিয়ার লজিস্টিকস খরচ অন্তর্ভুক্ত',
+    estimatedProfit: 'প্রতি ৳১০,০০০ বিনিয়োগে ৳১,৬০০ – ৳২,১০০ মুনাফা',
+    difficulty: 'সহজ',
+    requiredEquipment: 'কেন্দ্রীয় ওয়্যারহাউস, পস সফটওয়্যার ও ডেডিকেটেড সেলস টিম।',
+    requiredLocation: 'ঢাকা (উত্তরা ও মিরপুর হাব) এবং চট্টগ্রাম রিটেইল চেইন।',
+    requiredSkills: 'অ্যাপের মাধ্যমে ইনভেস্টমেন্ট পোর্টফোলিও পর্যবেক্ষণ।',
+    startupSteps: '১. ই-কমার্স ও রিটেইল চেইন ক্যাটাগরি নির্বাচন করুন\n২. ন্যূনতম ৳৩,০০০ থেকে যেকোনো অংক ইনভেস্ট করুন\n৩. ৩ মাস পর মূলধনসহ লভ্যাংশ ওয়ালেট থেকে বিকাশ/নগদে উত্তোলন করুন।',
+    productSourcing: 'সরাসরি ফ্যাক্টরি ও আলীবাবা ভেরিফায়েড সাপ্লায়ার থেকে বাল্ক লট সংগ্রহ।',
+    marketingStrategy: 'দারাজ মল, ফেসবুক অ্যাড ক্যাম্পেইন ও ৬টি আউটলেটে সরাসরি খুচরা বিক্রি।',
+    risk: 'ফাস্ট-মুভিং পণ্য হওয়ায় স্টক আটকে থাকার ঝুঁকি নেই।',
+    tips: 'স্বল্প মেয়াদে (৩ মাসে) দ্রুত রিটার্ন পেতে এই ক্যাটাগরিটি সবচেয়ে উপযোগী।',
+    isPremium: false,
+    isFeatured: true,
+    rating: 4.8,
+    isInvestmentProject: true,
+    roiPercent: '১৮%',
+    durationMonths: '৩ মাস',
+    targetCapitalBdt: 600000,
+    raisedCapitalBdt: 475000,
+  },
   {
     id: 'idea-1',
     title: 'ঘরে বসে খাঁটি মসলা ও গুঁড়া মসলার ব্যবসা',
@@ -864,3 +1075,176 @@ export const ANDROID_KOTLIN_FILES: Record<string, string> = {
   ...USER_ANDROID_KOTLIN_FILES,
   ...ADMIN_ANDROID_KOTLIN_FILES,
 };
+
+export interface BuyAndEarnPackageItem {
+  id: string;
+  title: string;
+  categoryName: string;
+  modelType: 'auto_resell' | 'digital_farm' | 'starter_kit';
+  modelBadge: string;
+  imageUrl: string;
+  fallbackImageUrl: string;
+  unitPriceBdt: number;
+  userProfitBdt: number;
+  userProfitPercent: number;
+  appFeePercent: number;
+  durationDays: number;
+  durationLabel: string;
+  availableUnits: number;
+  shortDesc: string;
+}
+
+export const INITIAL_BUY_AND_EARN_PACKAGES: BuyAndEarnPackageItem[] = [
+  {
+    id: 'pkg-honey-1',
+    title: '১০ কেজি সুন্দরবনের খাঁটি মধু ও কালোজিরা বান্ডেল',
+    categoryName: 'ই-কমার্স ও রিটেইল চেইন ইনভেস্টমেন্ট',
+    modelType: 'auto_resell',
+    modelBadge: 'পাইকারি ক্রয় ও অটো-রিসেল',
+    imageUrl: 'https://images.unsplash.com/photo-1587049352847-4a222e784d38?auto=format&fit=crop&w=700&q=80',
+    fallbackImageUrl: getCategoryFallbackImage('মধু ও কালোজিরা বান্ডেল', 'অটো-রিসেল প্রফিট প্যাক'),
+    unitPriceBdt: 1500,
+    userProfitBdt: 225,
+    userProfitPercent: 15,
+    appFeePercent: 5,
+    durationDays: 15,
+    durationLabel: '১৫ দিন',
+    availableUnits: 45,
+    shortDesc: 'বান্ডেলটি কিনে অ্যাপের ওয়্যারহাউসে রাখলে ১৫ দিনে খুচরা বিক্রি হয়ে আপনার ওয়ালেটে আসল ৳১,৫০০ + লাভ ৳২২৫ = মোট ৳১,৭২৫ জমা হবে। চাইলে নিজেও ডেলিভারি নিতে পারবেন।',
+  },
+  {
+    id: 'pkg-poultry-2',
+    title: '১০০টি সোনালী মুরগির ফ্লক শেয়ার ইউনিট (ডিজিটাল খামার)',
+    categoryName: 'কৃষি ও অ্যাগ্রো ইনভেস্টমেন্ট',
+    modelType: 'digital_farm',
+    modelBadge: 'ডিজিটাল খামার ইউনিট',
+    imageUrl: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=700&q=80',
+    fallbackImageUrl: getCategoryFallbackImage('সোনালী মুরগি খামার ইউনিট', 'ডিজিটাল খামার শেয়ার'),
+    unitPriceBdt: 2000,
+    userProfitBdt: 400,
+    userProfitPercent: 20,
+    appFeePercent: 6,
+    durationDays: 30,
+    durationLabel: '৩০ দিন (১ মাস)',
+    availableUnits: 60,
+    shortDesc: 'ভেরিফায়েড পোল্ট্রি খামারের ফ্লক ইউনিট কিনুন। ৩০ দিন পর খামার থেকে পাইকারি বিক্রির পর আসল ৳২,০০০ + হালাল লভ্যাংশ ৳৪০০ = মোট ৳২,৪০০ সরাসরি ওয়ালেটে পাবেন।',
+  },
+  {
+    id: 'pkg-spice-3',
+    title: '৫০ কেজি বিএসটিআই গুঁড়া মসলা ফ্যাক্টরি ব্যাচ',
+    categoryName: 'ক্ষুদ্র শিল্প ও ফ্যাক্টরি ইনভেস্টমেন্ট',
+    modelType: 'auto_resell',
+    modelBadge: 'ফ্যাক্টরি অটো-সেল ব্যাচ',
+    imageUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=700&q=80',
+    fallbackImageUrl: getCategoryFallbackImage('গুঁড়া মসলা ফ্যাক্টরি ব্যাচ', 'অটো-সেল লভ্যাংশ'),
+    unitPriceBdt: 2500,
+    userProfitBdt: 450,
+    userProfitPercent: 18,
+    appFeePercent: 5,
+    durationDays: 20,
+    durationLabel: '২০ দিন',
+    availableUnits: 38,
+    shortDesc: 'হলুদ, মরিচ ও ধনিয়া গুঁড়ার ফ্যাক্টরি ব্যাচ কিনুন। আমাদের ডিলার নেটওয়ার্কে ২০ দিনে বিক্রির পর আসল ৳২,৫০০ + লাভ ৳৪৫০ = মোট ৳২,৯৫০ ওয়ালেটে যুক্ত হবে।',
+  },
+  {
+    id: 'pkg-boutique-4',
+    title: '১৫ পিস প্রিমিয়াম সুতি থ্রি-পিস পাইকারি রিসেল লট',
+    categoryName: 'ই-কমার্স ও রিটেইল চেইন ইনভেস্টমেন্ট',
+    modelType: 'auto_resell',
+    modelBadge: 'গার্মেন্টস লট অটো-রিসেল',
+    imageUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=700&q=80',
+    fallbackImageUrl: getCategoryFallbackImage('সুতি থ্রি-পিস পাইকারি লট', 'রিসেল প্রফিট প্যাক'),
+    unitPriceBdt: 3000,
+    userProfitBdt: 600,
+    userProfitPercent: 20,
+    appFeePercent: 5,
+    durationDays: 25,
+    durationLabel: '২৫ দিন',
+    availableUnits: 30,
+    shortDesc: 'ইসলামপুর ও বাবুরহাটের সরাসরি কারখানা রেটে থ্রি-পিস লট কিনুন। অ্যাপের এফ-কমার্স পেজে বিক্রি হয়ে ২৫ দিনে আসল ৳৩,০০০ + লাভ ৳৬০০ = মোট ৳৩,৬০০ পাবেন।',
+  },
+  {
+    id: 'pkg-goat-5',
+    title: '১টি উন্নত জাতের ব্ল্যাক বেঙ্গল ছাগল পালন ইউনিট',
+    categoryName: 'কৃষি ও অ্যাগ্রো ইনভেস্টমেন্ট',
+    modelType: 'digital_farm',
+    modelBadge: 'লাইভস্টক খামার শেয়ার',
+    imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=700&q=80',
+    fallbackImageUrl: getCategoryFallbackImage('ব্ল্যাক বেঙ্গল ছাগল ইউনিট', 'অ্যাগ্রো খামার শেয়ার'),
+    unitPriceBdt: 4000,
+    userProfitBdt: 900,
+    userProfitPercent: 22.5,
+    appFeePercent: 6,
+    durationDays: 45,
+    durationLabel: '৪৫ দিন',
+    availableUnits: 25,
+    shortDesc: 'ভেটেরিনারি বীমাকৃত খামারে ছাগল মোটাতাজাকরণ ইউনিট কিনুন। ৪৫ দিন পর বিক্রয় শেষে আসল ৳৪,০০০ + মুনাফা ৳৯০০ = মোট ৳৪,৯০০ ওয়ালেটে উত্তোলন করুন।',
+  },
+  {
+    id: 'pkg-gadget-6',
+    title: 'স্মার্ট ওয়াচ ও ভাইরাল ই-কমার্স গ্যাজেট ইমপোর্ট শেয়ার',
+    categoryName: 'ই-কমার্স ও রিটেইল চেইন ইনভেস্টমেন্ট',
+    modelType: 'starter_kit',
+    modelBadge: 'গ্রুপ ইমপোর্ট ব্যাচ',
+    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=700&q=80',
+    fallbackImageUrl: getCategoryFallbackImage('স্মার্ট গ্যাজেট ইমপোর্ট শেয়ার', 'দ্রুত রিসেল প্রফিট'),
+    unitPriceBdt: 1000,
+    userProfitBdt: 140,
+    userProfitPercent: 14,
+    appFeePercent: 4,
+    durationDays: 10,
+    durationLabel: '১০ দিন',
+    availableUnits: 80,
+    shortDesc: 'মাত্র ৳১,০০০ দিয়ে চায়না ইমপোর্ট গ্যাজেট ব্যাচের ১টি শেয়ার কিনুন। দারাজ ও অনলাইনে ১০ দিনে স্টক ক্লিয়ারেন্সের পর আসল ৳১,০০০ + লাভ ৳১৪০ = মোট ৳১,১৪০ ফেরত পান।',
+  },
+];
+
+export interface PaymentGatewayAccounts {
+  bkashNumber: string;
+  bkashType: string;
+  nagadNumber: string;
+  nagadType: string;
+  rocketNumber: string;
+  rocketType: string;
+  bankDetails: string;
+}
+
+export const DEFAULT_PAYMENT_ACCOUNTS: PaymentGatewayAccounts = {
+  bkashNumber: '01906971148',
+  bkashType: 'বিকাশ পার্সোনাল (Send Money)',
+  nagadNumber: '01942807392',
+  nagadType: 'নগদ পার্সোনাল (Send Money)',
+  rocketNumber: '01906971148',
+  rocketType: 'রকেট পার্সোনাল (Send Money)',
+  bankDetails:
+    'ইসলামী ব্যাংক বাংলাদেশ পিএলসি • A/C: 20502130201894512 (অল্প পুঁজির ব্যবসা ফান্ড)',
+};
+
+const PAYMENT_ACCOUNTS_STORAGE_KEY = 'alpo_pujir_payment_accounts_v1';
+
+export function getPaymentGatewayAccounts(): PaymentGatewayAccounts {
+  try {
+    const raw = localStorage.getItem(PAYMENT_ACCOUNTS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_PAYMENT_ACCOUNTS,
+        ...parsed,
+      };
+    }
+  } catch {}
+  return DEFAULT_PAYMENT_ACCOUNTS;
+}
+
+export function savePaymentGatewayAccounts(
+  accounts: PaymentGatewayAccounts
+): void {
+  try {
+    localStorage.setItem(
+      PAYMENT_ACCOUNTS_STORAGE_KEY,
+      JSON.stringify(accounts)
+    );
+  } catch {}
+}
+
+

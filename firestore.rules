@@ -56,12 +56,17 @@ service cloud.firestore {
 
     function isValidCategory(data) {
       return data.keys().hasAll(['id', 'nameBn', 'nameEn', 'iconName', 'group', 'ideaCount', 'enabled', 'order', 'createdAt'])
-        && data.keys().hasOnly(['id', 'nameBn', 'nameEn', 'iconName', 'group', 'ideaCount', 'enabled', 'order', 'createdAt'])
+        && data.keys().hasOnly(['id', 'nameBn', 'nameEn', 'iconName', 'imageUrl', 'fallbackImageUrl', 'expectedRoi', 'minInvestBdt', 'shortDesc', 'group', 'ideaCount', 'enabled', 'order', 'createdAt'])
         && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.nameBn is string && data.nameBn.size() >= 1 && data.nameBn.size() <= 100
-        && data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 100
+        && data.nameBn is string && data.nameBn.size() >= 1 && data.nameBn.size() <= 120
+        && data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 120
         && data.iconName is string && data.iconName.size() >= 1 && data.iconName.size() <= 50
-        && data.group is string && data.group in ['existing', 'new', 'popular', 'special']
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 4000))
+        && (!('fallbackImageUrl' in data) || (data.fallbackImageUrl is string && data.fallbackImageUrl.size() <= 4000))
+        && (!('expectedRoi' in data) || (data.expectedRoi is string && data.expectedRoi.size() <= 100))
+        && (!('minInvestBdt' in data) || (data.minInvestBdt is number && data.minInvestBdt >= 0 && data.minInvestBdt <= 100000000))
+        && (!('shortDesc' in data) || (data.shortDesc is string && data.shortDesc.size() <= 500))
+        && data.group is string && data.group in ['existing', 'new', 'popular', 'special', 'investment']
         && data.ideaCount is number && data.ideaCount >= 0 && data.ideaCount <= 10000
         && data.enabled is bool
         && data.order is number && data.order >= 0 && data.order <= 10000
@@ -74,7 +79,7 @@ service cloud.firestore {
         && data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
         && data.category is string && data.category.size() >= 1 && data.category.size() <= 100
-        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500))
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 4000))
         && data.shortDescription is string && data.shortDescription.size() >= 1 && data.shortDescription.size() <= 500
         && data.requiredInvestment is string && data.requiredInvestment.size() >= 1 && data.requiredInvestment.size() <= 100
         && data.minInvestmentBdt is number && data.minInvestmentBdt >= 0 && data.minInvestmentBdt <= 100000000
@@ -248,10 +253,55 @@ service cloud.firestore {
     // Categories Collection
     match /categories/{categoryId} {
       allow get: if isValidId(categoryId) && isSignedIn() && (resource.data.enabled == true || isAdmin());
-      allow list: if isSignedIn() && resource.data.enabled == true;
+      allow list: if isSignedIn() && (resource.data.enabled == true || isBootstrappedAdmin());
       allow create: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming()) && incoming().id == categoryId && incoming().createdAt == request.time && isAdmin();
       allow update: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming()) && incoming().id == existing().id && incoming().createdAt == existing().createdAt && isAdmin();
       allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // Business Investments Collection (Mudaraba / Agro / E-commerce Reseller)
+    function isValidBusinessInvestment(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'userPhone', 'projectId', 'projectTitle', 'categoryName', 'amountBdt', 'expectedMonthlyProfitBdt', 'profitSharePercent', 'durationMonths', 'paymentMethod', 'transactionId', 'status', 'totalProfitPaidBdt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'userPhone', 'projectId', 'projectTitle', 'categoryName', 'amountBdt', 'expectedMonthlyProfitBdt', 'profitSharePercent', 'durationMonths', 'paymentMethod', 'transactionId', 'status', 'totalProfitPaidBdt', 'adminNote', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128
+        && data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120
+        && data.userPhone is string && data.userPhone.size() >= 3 && data.userPhone.size() <= 40
+        && data.projectId is string && data.projectId.size() >= 1 && data.projectId.size() <= 128
+        && data.projectTitle is string && data.projectTitle.size() >= 1 && data.projectTitle.size() <= 200
+        && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 120
+        && data.amountBdt is number && data.amountBdt >= 500 && data.amountBdt <= 50000000
+        && data.expectedMonthlyProfitBdt is number && data.expectedMonthlyProfitBdt >= 0 && data.expectedMonthlyProfitBdt <= 10000000
+        && data.profitSharePercent is string && data.profitSharePercent.size() >= 1 && data.profitSharePercent.size() <= 60
+        && data.durationMonths is number && data.durationMonths >= 1 && data.durationMonths <= 120
+        && data.paymentMethod is string && data.paymentMethod in ['bKash', 'Nagad', 'Rocket', 'Bank', 'Wallet']
+        && data.transactionId is string && data.transactionId.size() >= 2 && data.transactionId.size() <= 100
+        && data.status is string && data.status in ['pending', 'active', 'completed', 'rejected']
+        && data.totalProfitPaidBdt is number && data.totalProfitPaidBdt >= 0 && data.totalProfitPaidBdt <= 50000000
+        && (!('adminNote' in data) || (data.adminNote is string && data.adminNote.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /investments/{investmentId} {
+      allow get: if isValidId(investmentId) && isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(investmentId)
+        && isValidBusinessInvestment(incoming())
+        && incoming().id == investmentId
+        && (incoming().userId == request.auth.uid || isAdmin())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(investmentId)
+        && isValidBusinessInvestment(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidId(investmentId) && isAdmin();
     }
 
     // Business Ideas Collection

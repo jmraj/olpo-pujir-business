@@ -28,6 +28,8 @@ import {
   USER_ANDROID_KOTLIN_FILES,
   ADMIN_ANDROID_KOTLIN_FILES,
   ASSETS,
+  getPaymentGatewayAccounts,
+  savePaymentGatewayAccounts,
 } from '../data/seedData';
 
 export interface AdminUserRecord {
@@ -167,6 +169,27 @@ interface AdminPanelViewProps {
   onDeleteNotice: (id: string) => void;
   auditLogs: WalletAuditRecord[];
   adminSecurityLogs?: AdminAuditLogRecord[];
+  investments?: Array<{
+    id: string;
+    userId: string;
+    userName: string;
+    userPhone: string;
+    projectId: string;
+    projectTitle: string;
+    categoryName: string;
+    amountBdt: number;
+    expectedMonthlyProfitBdt: number;
+    profitSharePercent: string;
+    durationMonths: number;
+    paymentMethod: string;
+    transactionId: string;
+    status: 'pending' | 'active' | 'completed' | 'rejected';
+    totalProfitPaidBdt: number;
+  }>;
+  onManageInvestment?: (
+    id: string,
+    action: 'approve' | 'reject' | 'pay_profit'
+  ) => void;
   onExitAdmin: () => void;
   onLogoutAdmin: () => void;
 }
@@ -215,6 +238,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
   onDeleteNotice,
   auditLogs,
   adminSecurityLogs = [],
+  investments = [],
+  onManageInvestment,
   onExitAdmin,
   onLogoutAdmin,
 }) => {
@@ -254,6 +279,17 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
   const [newIdeaDesc, setNewIdeaDesc] = useState('');
   const [newCatBn, setNewCatBn] = useState('');
   const [newCatEn, setNewCatEn] = useState('');
+  const [newCatImageUrl, setNewCatImageUrl] = useState('');
+  const [newCatGroup, setNewCatGroup] = useState<
+    'investment' | 'popular' | 'new' | 'special' | 'existing'
+  >('investment');
+  const [newCatRoi, setNewCatRoi] = useState('মাসিক ১৫%–২০% হালাল মুনাফা');
+  const [newCatMinInvest, setNewCatMinInvest] = useState<number>(5000);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [payAccounts, setPayAccounts] = useState(() =>
+    getPaymentGatewayAccounts()
+  );
+  const [paySavedMsg, setPaySavedMsg] = useState<string | null>(null);
 
   // Notice form state
   const [noticeTitle, setNoticeTitle] = useState('');
@@ -1915,67 +1951,464 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4">
-              <h3 className="text-base font-bold text-slate-900">
-                ক্যাটাগরি ব্যবস্থাপনা ({categories.length}টি ক্যাটাগরি)
-              </h3>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newCatBn}
-                  onChange={(e) => setNewCatBn(e.target.value)}
-                  placeholder="বাংলা নাম"
-                  className="flex-1 h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                />
-                <input
-                  type="text"
-                  value={newCatEn}
-                  onChange={(e) => setNewCatEn(e.target.value)}
-                  placeholder="English Name"
-                  className="flex-1 h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                />
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    ক্যাটাগরি ও ইনভেস্টমেন্ট খাত ব্যবস্থাপনা ({categories.length}টি ক্যাটাগরি)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    ৩টি ইনভেস্টমেন্ট ব্যবসা ক্যাটাগরিসহ সকল ক্যাটাগরির ছবি, মুনাফার হার ও স্ট্যাটাস নিয়ন্ত্রণ করুন
+                  </p>
+                </div>
+                {editingCatId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCatId(null);
+                      setNewCatBn('');
+                      setNewCatEn('');
+                      setNewCatImageUrl('');
+                    }}
+                    className="text-xs text-rose-600 font-bold hover:underline cursor-pointer"
+                  >
+                    সম্পাদনা বাতিল
+                  </button>
+                )}
+              </div>
+
+              {/* Dedicated 3 Investment Categories Admin Control Box */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#022C22] via-[#064E3B] to-[#042F24] text-white border border-[#D4AF37]/40 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-[#FDE68A] flex items-center gap-1.5">
+                    💰 অ্যাডমিন ইনভেস্টমেন্ট ব্যবসা ক্যাটাগরি ({categories.filter((c) => c.group === 'investment').length}টি)
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 font-extrabold">
+                    অ্যাডমিন নিয়ন্ত্রিত
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {categories
+                    .filter((c) => c.group === 'investment')
+                    .map((invCat) => (
+                      <div
+                        key={invCat.id}
+                        className="p-2.5 rounded-xl bg-white/10 border border-white/15 flex items-center justify-between gap-2.5 text-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={invCat.imageUrl}
+                            alt={invCat.nameBn}
+                            onError={(e) => {
+                              const t = e.currentTarget;
+                              if (
+                                invCat.fallbackImageUrl &&
+                                t.src !== invCat.fallbackImageUrl
+                              ) {
+                                t.src = invCat.fallbackImageUrl;
+                              }
+                            }}
+                            className="w-11 h-11 rounded-xl object-cover shrink-0 border border-[#D4AF37]/50"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-white truncate">
+                              {invCat.nameBn}
+                            </div>
+                            <div className="text-[10px] text-[#FDE68A] truncate">
+                              {invCat.expectedRoi || 'মাসিক ১২%–২০% মুনাফা'} • সর্বনিম্ন ৳
+                              {(invCat.minInvestBdt || 3000).toLocaleString('bn-BD')}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCatId(invCat.id);
+                              setNewCatBn(invCat.nameBn);
+                              setNewCatEn(invCat.nameEn);
+                              setNewCatImageUrl(invCat.imageUrl || '');
+                              setNewCatGroup(invCat.group);
+                              setNewCatRoi(invCat.expectedRoi || 'মাসিক ১৫%–২০% মুনাফা');
+                              setNewCatMinInvest(invCat.minInvestBdt || 5000);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#D4AF37] text-slate-950 text-[11px] font-extrabold cursor-pointer"
+                          >
+                            সম্পাদনা
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onToggleCategory(invCat.id)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer ${
+                              invCat.enabled
+                                ? 'bg-emerald-400 text-slate-950'
+                                : 'bg-rose-500 text-white'
+                            }`}
+                          >
+                            {invCat.enabled ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* User Purchased Packages & Investments Verification & Profit Payout */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-amber-950">
+                    🛒 ইউজারদের কেনা প্যাকেজ/ইউনিট ও ইনভেস্টমেন্ট রিকোয়েস্ট ({investments.length}টি)
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800">
+                    ১-ক্লিকে আসল + লাভ ওয়ালেটে পাঠান
+                  </span>
+                </div>
+
+                {investments.length === 0 ? (
+                  <p className="text-[11px] text-amber-900/80 py-2">
+                    এখনো কোনো ইউজার প্যাকেজ বা ইনভেস্টমেন্ট অর্ডার জমা দেননি। ইউজার অ্যাপ থেকে কিনলেই এখানে দেখা যাবে।
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {investments.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="p-2.5 rounded-xl bg-white border border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-slate-900 truncate">
+                            {inv.projectTitle}
+                          </div>
+                          <div className="text-[11px] text-slate-600">
+                            ইউজার: <strong>{inv.userName}</strong> ({inv.userPhone}) • মাধ্যম: <strong>{inv.paymentMethod}</strong> (TrxID: {inv.transactionId})
+                          </div>
+                          <div className="text-[11px] font-extrabold text-[#064E3B] mt-0.5">
+                            ক্রয়মূল্য: ৳{inv.amountBdt.toLocaleString('bn-BD')} • ইউজারের লাভ: +৳{inv.expectedMonthlyProfitBdt.toLocaleString('bn-BD')} • মোট প্রদেয়: ৳{(inv.amountBdt + inv.expectedMonthlyProfitBdt).toLocaleString('bn-BD')}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {inv.status === 'pending' && onManageInvestment && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onManageInvestment(inv.id, 'approve')}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white text-[11px] font-bold cursor-pointer"
+                              >
+                                ✅ অনুমোদন
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onManageInvestment(inv.id, 'reject')}
+                                className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[11px] font-bold cursor-pointer"
+                              >
+                                বাতিল
+                              </button>
+                            </>
+                          )}
+                          {(inv.status === 'pending' || inv.status === 'active') &&
+                            onManageInvestment && (
+                              <button
+                                type="button"
+                                onClick={() => onManageInvestment(inv.id, 'pay_profit')}
+                                className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950 text-[11px] font-extrabold shadow cursor-pointer"
+                              >
+                                💸 আসল+লাভ ওয়ালেটে দিন (৳{(inv.amountBdt + inv.expectedMonthlyProfitBdt).toLocaleString('bn-BD')})
+                              </button>
+                            )}
+                          {inv.status === 'completed' && (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+                              ✓ মুনাফা পরিশোধিত
+                            </span>
+                          )}
+                          {inv.status === 'rejected' && (
+                            <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold">
+                              বাতিলকৃত
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Admin Investment & Package Payment Numbers Configuration */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-300 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-extrabold text-[#064E3B] block">
+                      📲 ইনভেস্টমেন্ট ও প্যাকেজ পেমেন্ট নম্বর সেটিংস (যেখানে ইউজার টাকা পাঠাবে)
+                    </span>
+                    <span className="text-[10px] text-slate-600">
+                      এখানে আপনার বিকাশ, নগদ, রকেট ও ব্যাংক অ্যাকাউন্ট নম্বর পরিবর্তন করলে ইউজার অ্যাপে তাৎক্ষণিক আপডেট হবে
+                    </span>
+                  </div>
+                  {paySavedMsg && (
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white text-[10px] font-bold">
+                      ✓ {paySavedMsg}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-pink-700 block mb-0.5">
+                      বিকাশ নম্বর (bKash Send Money)
+                    </label>
+                    <input
+                      type="text"
+                      value={payAccounts.bkashNumber}
+                      onChange={(e) =>
+                        setPayAccounts((prev) => ({
+                          ...prev,
+                          bkashNumber: e.target.value,
+                        }))
+                      }
+                      className="w-full h-8 px-2.5 rounded-lg border border-pink-200 bg-white text-xs font-bold text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-amber-800 block mb-0.5">
+                      নগদ নম্বর (Nagad Send Money)
+                    </label>
+                    <input
+                      type="text"
+                      value={payAccounts.nagadNumber}
+                      onChange={(e) =>
+                        setPayAccounts((prev) => ({
+                          ...prev,
+                          nagadNumber: e.target.value,
+                        }))
+                      }
+                      className="w-full h-8 px-2.5 rounded-lg border border-amber-200 bg-white text-xs font-bold text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-purple-700 block mb-0.5">
+                      রকেট নম্বর (Rocket Personal)
+                    </label>
+                    <input
+                      type="text"
+                      value={payAccounts.rocketNumber}
+                      onChange={(e) =>
+                        setPayAccounts((prev) => ({
+                          ...prev,
+                          rocketNumber: e.target.value,
+                        }))
+                      }
+                      className="w-full h-8 px-2.5 rounded-lg border border-purple-200 bg-white text-xs font-bold text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={payAccounts.bankDetails}
+                    onChange={(e) =>
+                      setPayAccounts((prev) => ({
+                        ...prev,
+                        bankDetails: e.target.value,
+                      }))
+                    }
+                    placeholder="ব্যাংক অ্যাকাউন্ট তথ্য"
+                    className="flex-1 h-8 px-2.5 rounded-lg border border-emerald-200 bg-white text-xs text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      savePaymentGatewayAccounts(payAccounts);
+                      setPaySavedMsg('পেমেন্ট নম্বর সংরক্ষিত হয়েছে!');
+                      setTimeout(() => setPaySavedMsg(null), 3000);
+                    }}
+                    className="px-4 h-8 rounded-lg bg-[#064E3B] text-white text-xs font-extrabold cursor-pointer shrink-0"
+                  >
+                    পেমেন্ট নম্বর সেভ করুন
+                  </button>
+                </div>
+              </div>
+
+              {/* Add / Edit Category Form with Image & Investment Options */}
+              <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <div className="text-xs font-bold text-slate-800">
+                  {editingCatId
+                    ? 'ক্যাটাগরি ও ছবি সম্পাদনা করুন'
+                    : 'নতুন ক্যাটাগরি / ইনভেস্টমেন্ট খাত যোগ করুন'}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={newCatBn}
+                    onChange={(e) => setNewCatBn(e.target.value)}
+                    placeholder="বাংলা নাম (যেমন: হালাল প্রফিট শেয়ারিং)"
+                    className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs"
+                  />
+                  <input
+                    type="text"
+                    value={newCatEn}
+                    onChange={(e) => setNewCatEn(e.target.value)}
+                    placeholder="English Name"
+                    className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={newCatImageUrl}
+                    onChange={(e) => setNewCatImageUrl(e.target.value)}
+                    placeholder="ক্যাটাগরি ছবির লিংক (Image URL - ঐচ্ছিক)"
+                    className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs"
+                  />
+                  <select
+                    value={newCatGroup}
+                    onChange={(e) => setNewCatGroup(e.target.value as any)}
+                    className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800"
+                  >
+                    <option value="investment">💰 ইনভেস্টমেন্ট করে ব্যবসা (Investment)</option>
+                    <option value="popular">জনপ্রিয় খাত (Popular)</option>
+                    <option value="new">আধুনিক ও ডিজিটাল (New)</option>
+                    <option value="special">বিশেষ খাত (Special)</option>
+                    <option value="existing">প্রচলিত ব্যবসা (Existing)</option>
+                  </select>
+                </div>
+                {newCatGroup === 'investment' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={newCatRoi}
+                      onChange={(e) => setNewCatRoi(e.target.value)}
+                      placeholder="সম্ভাব্য মুনাফা (যেমন: মাসিক ১৫%–২০% মুনাফা)"
+                      className="h-9 px-3 rounded-xl border border-amber-300 bg-amber-50/50 text-xs"
+                    />
+                    <input
+                      type="number"
+                      value={newCatMinInvest}
+                      onChange={(e) => setNewCatMinInvest(Number(e.target.value) || 3000)}
+                      placeholder="সর্বনিম্ন বিনিয়োগ (৳)"
+                      className="h-9 px-3 rounded-xl border border-amber-300 bg-amber-50/50 text-xs"
+                    />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => {
                     if (!newCatBn.trim()) return;
+                    const existingCat = editingCatId
+                      ? categories.find((c) => c.id === editingCatId)
+                      : undefined;
+                    const fallbackImg =
+                      existingCat?.fallbackImageUrl || ASSETS.spiceIdeaImg;
+                    const finalImg =
+                      newCatImageUrl.trim() ||
+                      existingCat?.imageUrl ||
+                      ASSETS.spiceIdeaImg;
                     onAddCategory({
-                      id: `cat-${Date.now()}`,
+                      id: existingCat ? existingCat.id : `cat-${Date.now()}`,
                       nameBn: newCatBn.trim(),
-                      nameEn: newCatEn.trim() || 'Business',
-                      iconName: 'Store',
-                      group: 'new',
-                      ideaCount: 5,
-                      enabled: true,
-                      order: categories.length + 1,
+                      nameEn: newCatEn.trim() || 'Business & Investment',
+                      iconName:
+                        existingCat?.iconName ||
+                        (newCatGroup === 'investment' ? 'Award' : 'Store'),
+                      imageUrl: finalImg,
+                      fallbackImageUrl: fallbackImg,
+                      group: newCatGroup,
+                      ideaCount: existingCat?.ideaCount || 6,
+                      enabled: existingCat ? existingCat.enabled : true,
+                      order: existingCat
+                        ? existingCat.order
+                        : categories.length + 1,
+                      ...(newCatGroup === 'investment'
+                        ? {
+                            expectedRoi: newCatRoi.trim() || 'মাসিক ১৫%–২০% মুনাফা',
+                            minInvestBdt: Number(newCatMinInvest) || 5000,
+                            shortDesc:
+                              existingCat?.shortDesc ||
+                              `${newCatBn.trim()} খাতে সরাসরি বিনিয়োগ করে মাসিক হালাল প্রফিট শেয়ারিং।`,
+                          }
+                        : {}),
                     });
+                    setEditingCatId(null);
                     setNewCatBn('');
                     setNewCatEn('');
+                    setNewCatImageUrl('');
                   }}
-                  className="px-4 h-10 rounded-xl bg-[#044E36] text-white text-xs font-semibold cursor-pointer"
+                  className="w-full h-9 rounded-xl bg-[#044E36] text-white text-xs font-bold cursor-pointer"
                 >
-                  যোগ
+                  {editingCatId
+                    ? 'ক্যাটাগরি পরিবর্তন সংরক্ষণ করুন'
+                    : '+ নতুন ক্যাটাগরি যোগ করুন'}
                 </button>
               </div>
-              <div className="space-y-1.5 max-h-72 overflow-y-auto">
+
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {categories.map((cat) => (
                   <div
                     key={cat.id}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 text-xs"
+                    className={`flex items-center justify-between gap-2.5 p-2.5 rounded-xl border text-xs ${
+                      cat.group === 'investment'
+                        ? 'bg-amber-50/70 border-amber-300'
+                        : 'bg-slate-50 border-slate-200/70'
+                    }`}
                   >
-                    <div>
-                      <span className="font-semibold text-slate-800">{cat.nameBn}</span>{' '}
-                      <span className="text-slate-400">({cat.nameEn})</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img
+                        src={cat.imageUrl || ASSETS.spiceIdeaImg}
+                        alt={cat.nameBn}
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          if (
+                            cat.fallbackImageUrl &&
+                            t.src !== cat.fallbackImageUrl
+                          ) {
+                            t.src = cat.fallbackImageUrl;
+                          }
+                        }}
+                        className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 truncate">
+                            {cat.nameBn}
+                          </span>
+                          {cat.group === 'investment' && (
+                            <span className="px-1.5 py-0.5 rounded bg-[#D4AF37] text-slate-950 text-[9px] font-extrabold shrink-0">
+                              ইনভেস্টমেন্ট
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500 block truncate">
+                          {cat.nameEn} • {cat.ideaCount}টি আইডিয়া
+                        </span>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onToggleCategory(cat.id)}
-                      className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer ${
-                        cat.enabled
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {cat.enabled ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingCatId(cat.id);
+                          setNewCatBn(cat.nameBn);
+                          setNewCatEn(cat.nameEn);
+                          setNewCatImageUrl(cat.imageUrl || '');
+                          setNewCatGroup(cat.group);
+                          setNewCatRoi(cat.expectedRoi || 'মাসিক ১৫%–২০% মুনাফা');
+                          setNewCatMinInvest(cat.minInvestBdt || 5000);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-emerald-800 font-bold text-[11px] hover:bg-emerald-50 cursor-pointer"
+                      >
+                        সম্পাদনা
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onToggleCategory(cat.id)}
+                        className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer ${
+                          cat.enabled
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {cat.enabled ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

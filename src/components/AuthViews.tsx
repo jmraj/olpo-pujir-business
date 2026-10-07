@@ -323,14 +323,12 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
     setInfoMsg(null);
     setIsDuplicateEmailError(false);
 
-    const trimmedEmail = loginEmail.trim();
-    if (!trimmedEmail) {
-      setErrorMsg('অনুগ্রহ করে আপনার ইমেইল ঠিকানা লিখুন।');
-      return;
-    }
-    if (!EMAIL_REGEX.test(trimmedEmail)) {
+    const trimmedIdentifier = loginEmail.trim();
+    if (!trimmedIdentifier) {
       setErrorMsg(
-        'প্রদত্ত ইমেইল ঠিকানাটি সঠিক নয়। অনুগ্রহ করে সঠিক ইমেইল লিখুন (যেমন: name@example.com)।'
+        isAdminMode
+          ? 'অনুগ্রহ করে অ্যাডমিন আইডি বা ইমেইল লিখুন।'
+          : 'অনুগ্রহ করে আপনার মোবাইল নম্বর, ইউজার আইডি অথবা ইমেইল লিখুন।'
       );
       return;
     }
@@ -340,11 +338,24 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
     }
 
     setLoading(true);
-    setLoadingLabel('লগইন যাচাই করা হচ্ছে...');
+    setLoadingLabel(
+      isAdminMode
+        ? 'অ্যাডমিন ক্রেডেনশিয়াল ও পাসওয়ার্ড যাচাই হচ্ছে...'
+        : 'অ্যাকাউন্ট ও পাসওয়ার্ড যাচাই করা হচ্ছে...'
+    );
     try {
-      const fbUser = await loginWithEmail(trimmedEmail, loginPassword);
-      setLoadingLabel('প্রোফাইল লোড হচ্ছে...');
-      const profile = await verifyAndSyncUserProfile(fbUser);
+      const fbUser = await loginWithEmail(
+        trimmedIdentifier,
+        loginPassword,
+        isAdminMode
+      );
+      setLoadingLabel('প্রোফাইল সিঙ্ক করা হচ্ছে...');
+      const cleanedPhone = trimmedIdentifier.replace(/[\s-]/g, '');
+      const isPhoneLogin = BD_PHONE_REGEX.test(cleanedPhone);
+      const profile = await verifyAndSyncUserProfile(
+        fbUser,
+        isPhoneLogin ? { phone: cleanedPhone } : undefined
+      );
 
       if (profile.status === 'banned') {
         try {
@@ -361,16 +372,20 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
           await logoutFirebase();
         } catch {}
         setErrorMsg(
-          'প্রবেশাধিকার সংরক্ষিত: এই অ্যাকাউন্টে অ্যাডমিন প্যানেল অ্যাক্সেস নেই (Unauthorized Normal User)। শুধুমাত্র অনুমোদিত অ্যাডমিন লগইন করতে পারবেন।'
+          'প্রবেশাধিকার সংরক্ষিত: এই অ্যাকাউন্টে অ্যাডমিন প্যানেল অ্যাক্সেস নেই। শুধুমাত্র অনুমোদিত অ্যাডমিন আইডি ও সঠিক পাসওয়ার্ড দিয়ে লগইন করা যাবে।'
         );
         return;
       }
 
-      if (isAdminMode && profile.isAuthorizedAdmin) {
-        try {
+      try {
+        localStorage.setItem(
+          'alpo_cached_user_profile',
+          JSON.stringify(profile)
+        );
+        if (isAdminMode && profile.isAuthorizedAdmin) {
           localStorage.setItem('alpo_admin_session_active', 'true');
-        } catch {}
-      }
+        }
+      } catch {}
 
       onAuthenticated(profile, isAdminMode);
     } catch (err: unknown) {
@@ -403,9 +418,9 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
       );
       return;
     }
-    if (!EMAIL_REGEX.test(trimmedEmail)) {
+    if (trimmedEmail && !EMAIL_REGEX.test(trimmedEmail)) {
       setErrorMsg(
-        'অনুগ্রহ করে একটি সঠিক ইমেইল ঠিকানা লিখুন (যেমন: name@example.com)।'
+        'অনুগ্রহ করে একটি সঠিক ইমেইল ঠিকানা লিখুন (যেমন: name@example.com) অথবা ঘরটি খালি রাখুন।'
       );
       return;
     }
@@ -422,12 +437,13 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
     }
 
     setLoading(true);
-    setLoadingLabel('Firebase অ্যাকাউন্ট তৈরি হচ্ছে...');
+    setLoadingLabel('সিকিউর অ্যাকাউন্ট তৈরি হচ্ছে...');
     try {
       const fbUser = await registerWithEmail(
         trimmedName,
         trimmedEmail,
-        password
+        password,
+        trimmedPhone
       );
       setLoadingLabel('Firestore ডাটাবেসে প্রোফাইল সংরক্ষণ হচ্ছে...');
       const profile = await verifyAndSyncUserProfile(fbUser, {
@@ -435,6 +451,13 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
         phone: trimmedPhone,
         referredBy: trimmedReferral,
       });
+
+      try {
+        localStorage.setItem(
+          'alpo_cached_user_profile',
+          JSON.stringify(profile)
+        );
+      } catch {}
 
       onAuthenticated(profile);
     } catch (err: unknown) {
@@ -627,17 +650,23 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
             <form onSubmit={handleEmailLogin} className="space-y-4" noValidate>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  ইমেইল অ্যাড্রেস (Email) *
+                  {isAdminMode
+                    ? 'অ্যাডমিন আইডি / ইমেইল (Admin ID or Email) *'
+                    : 'মোবাইল নম্বর / ইউজার আইডি / ইমেইল *'}
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="email"
+                    type="text"
                     disabled={loading}
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
+                    placeholder={
+                      isAdminMode
+                        ? 'admin@alpopujirbebsha.app অথবা admin'
+                        : '017XXXXXXXX অথবা ইমেইল / ইউজার আইডি'
+                    }
+                    autoComplete="username"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/70 text-sm focus:bg-white focus:border-[#059669] focus:outline-none disabled:opacity-60"
                   />
                 </div>
@@ -687,6 +716,22 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
                 </div>
               </div>
 
+              {isAdminMode ? (
+                <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-xs text-amber-950 space-y-1.5">
+                  <div className="font-extrabold text-amber-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-700" />
+                    সিকিউর অ্যাডমিন ভেরিফিকেশন (Firebase Auth + Role Guard)
+                  </div>
+                  <p className="text-[11px] text-amber-800/90 leading-relaxed">
+                    আপনার অনুমোদিত অ্যাডমিন আইডি বা ইমেইল এবং পাসওয়ার্ড দিয়ে লগইন করুন। শুধুমাত্র Firestore <code className="font-mono bg-white/80 px-1 rounded">/admins</code> রোলে অনুমোদিত অ্যাকাউন্টই অ্যাডমিন প্যানেলে প্রবেশ করতে পারবে।
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/60 text-[11px] text-emerald-900 leading-relaxed">
+                  ✅ <strong>অ্যাপ আপডেট সাপোর্ট:</strong> আপনার আগের রেজিস্টার্ড মোবাইল নম্বর, ইউজার আইডি অথবা ইমেইল ও পাসওয়ার্ড দিয়ে সরাসরি লগইন করতে পারবেন।
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -698,7 +743,7 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
                     <span>{loadingLabel || 'লগইন হচ্ছে...'}</span>
                   </>
                 ) : (
-                  <span>লগইন করুন</span>
+                  <span>{isAdminMode ? 'সিকিউর অ্যাডমিন লগইন' : 'লগইন করুন'}</span>
                 )}
               </button>
             </form>
