@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { triggerReliableDownload } from '../utils/downloadAppBundle';
 import {
   LayoutDashboard,
   Users,
@@ -508,20 +509,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
   );
 
   const downloadStandaloneZipApp = (target: 'user' | 'admin') => {
-    const endpoint =
-      target === 'user'
-        ? '/api/download/user-zip'
-        : '/api/download/admin-zip';
-    const filename =
-      target === 'user'
-        ? 'Alpo_Pujir_Bebsha_User_App.zip'
-        : 'Alpo_Pujir_Bebsha_Admin_App.zip';
-    const a = document.createElement('a');
-    a.href = endpoint;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    setDownloadingApp(target);
+    triggerReliableDownload(target === 'user' ? 'user-zip' : 'admin-zip', {
+      onStatus: () => {
+        setTimeout(() => setDownloadingApp(null), 1500);
+      },
+    });
   };
 
   const handleDownloadAndroidBundle = () => {

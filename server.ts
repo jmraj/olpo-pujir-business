@@ -13,13 +13,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function getTargetBuildDir(target: 'user' | 'admin'): string {
-  const persistentDir = path.join(__dirname, 'build_output', target);
-  if (fs.existsSync(path.join(persistentDir, 'assets'))) {
-    return persistentDir;
-  }
   const distDir = path.join(__dirname, 'dist', target);
   if (fs.existsSync(path.join(distDir, 'assets'))) {
     return distDir;
+  }
+  const persistentDir = path.join(__dirname, 'build_output', target);
+  if (fs.existsSync(path.join(persistentDir, 'assets'))) {
+    return persistentDir;
   }
   try {
     const cfgFile =
@@ -31,7 +31,7 @@ function getTargetBuildDir(target: 'user' | 'admin'): string {
   } catch (err) {
     console.error(`Auto-build failed for ${target}:`, err);
   }
-  return persistentDir;
+  return fs.existsSync(path.join(distDir, 'assets')) ? distDir : persistentDir;
 }
 
 const ANDROID_FILE_VIEWER_POLYFILL = `<script>
@@ -459,24 +459,34 @@ function renderDownloadPortalHtml(autoTarget?: 'user' | 'admin' | 'user-html' | 
     <div id="dl-status" class="status">✅ ডাউনলোড শুরু হয়েছে! আপনার ব্রাউজারের Downloads ফোল্ডার দেখুন।</div>
 
     <div class="box-user">
-      <div class="box-title" style="color:#064E3B;">১. User App (গ্রাহক ও উদ্যোক্তাদের অ্যাপ)</div>
+      <div class="box-title" style="color:#064E3B;">১. User App (গ্রাহক ও উদ্যোক্তাদের আপডেটেড অ্যাপ)</div>
       <a class="btn btn-green" href="/api/download/user-zip" download="Alpo_Pujir_Bebsha_User_App.zip" onclick="showStatus('User App ZIP ডাউনলোড হচ্ছে...')">
-        📦 User App ZIP ডাউনলোড (APK / WebView ফাইল)
+        📦 User App ZIP ডাউনলোড (Alpo_Pujir_Bebsha_User_App.zip)
       </a>
+      <button type="button" class="btn btn-green-outline" onclick="shareOrSaveFile('/api/download/user-zip', 'Alpo_Pujir_Bebsha_User_App.zip', 'application/zip')">
+        📲 User App ফোনে সেভ / শেয়ার করুন (Save to Phone/Drive)
+      </button>
       <a class="btn btn-green-outline" href="/api/download/user-app" download="Alpo_Pujir_Bebsha_User_App.html" onclick="showStatus('User App (.html) ডাউনলোড হচ্ছে...')">
-        📱 User App ডাউনলোড (মোবাইলে সরাসরি ওপেন হবে)
+        📱 User App সিঙ্গেল ফাইল ডাউনলোড (.html)
       </a>
     </div>
 
     <div class="box-admin">
-      <div class="box-title" style="color:#92400E;">২. Admin Panel App (অ্যাডমিন কন্ট্রোল অ্যাপ)</div>
+      <div class="box-title" style="color:#92400E;">২. Admin Panel App (অ্যাডমিন কন্ট্রোল আপডেটেড অ্যাপ)</div>
       <a class="btn btn-gold" href="/api/download/admin-zip" download="Alpo_Pujir_Bebsha_Admin_App.zip" onclick="showStatus('Admin App ZIP ডাউনলোড হচ্ছে...')">
-        📦 Admin App ZIP ডাউনলোড (APK / WebView ফাইল)
+        📦 Admin App ZIP ডাউনলোড (Alpo_Pujir_Bebsha_Admin_App.zip)
       </a>
+      <button type="button" class="btn btn-gold-outline" onclick="shareOrSaveFile('/api/download/admin-zip', 'Alpo_Pujir_Bebsha_Admin_App.zip', 'application/zip')">
+        📲 Admin App ফোনে সেভ / শেয়ার করুন (Save to Phone/Drive)
+      </button>
       <a class="btn btn-gold-outline" href="/api/download/admin-app" download="Alpo_Pujir_Bebsha_Admin_App.html" onclick="showStatus('Admin App (.html) ডাউনলোড হচ্ছে...')">
-        🔐 Admin App ডাউনলোড (মোবাইলে সরাসরি ওপেন হবে)
+        🔐 Admin App সিঙ্গেল ফাইল ডাউনলোড (.html)
       </a>
     </div>
+
+    <a id="chrome-intent-btn" class="btn" style="background:#2563EB;color:#ffffff;margin-bottom:8px;" href="#">
+      🌐 Google Chrome ব্রাউজারে ওপেন করে ডাউনলোড করুন
+    </a>
 
     <div class="nav-row">
       <a class="nav-btn" style="background:#F1F5F9;color:#1E293B;" href="/">← User App ওপেন করুন</a>
@@ -489,6 +499,32 @@ function renderDownloadPortalHtml(autoTarget?: 'user' | 'admin' | 'user-html' | 
       if (el) {
         el.style.display = 'block';
         el.textContent = '✅ ' + msg;
+      }
+    }
+    var chromeBtn = document.getElementById('chrome-intent-btn');
+    if (chromeBtn && window.location.host) {
+      chromeBtn.href = 'intent://' + window.location.host + '/download#Intent;scheme=https;package=com.android.chrome;end';
+    }
+    async function shareOrSaveFile(endpoint, filename, mimeType) {
+      showStatus(filename + ' প্রস্তুত হচ্ছে...');
+      try {
+        var res = await fetch(endpoint + '?t=' + Date.now(), { credentials: 'include' });
+        var buf = await res.arrayBuffer();
+        var file = new File([buf], filename, { type: mimeType });
+        if (navigator.share) {
+          await navigator.share({ title: filename, files: [file] });
+          showStatus(filename + ' সফলভাবে সেভ/শেয়ার মেনুতে ওপেন হয়েছে!');
+          return;
+        }
+        var blobUrl = URL.createObjectURL(new Blob([buf], { type: mimeType }));
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (e) {
+        window.location.href = endpoint;
       }
     }
     var autoUrl = ${JSON.stringify(autoDownloadUrl)};
