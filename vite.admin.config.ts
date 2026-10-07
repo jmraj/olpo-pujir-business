@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist/admin',
+    outDir: 'build_output/admin',
     emptyOutDir: true,
     rollupOptions: {
       input: {

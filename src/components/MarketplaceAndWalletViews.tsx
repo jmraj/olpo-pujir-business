@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Lock,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   XCircle,
   Sparkles,
@@ -1066,6 +1067,7 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
   const [trxId, setTrxId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [copiedNum, setCopiedNum] = useState<string | null>(null);
 
   const handleCopyNumber = (num: string) => {
@@ -1076,16 +1078,39 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
     } catch {}
   };
 
+  const isFakeOrInvalidTrxId = (raw: string): boolean => {
+    const cleaned = raw.trim().toUpperCase();
+    if (cleaned.length < 8 || cleaned.length > 20) return true;
+    if (/^(.)\1{4,}$/.test(cleaned)) return true;
+    if (
+      /123456|654321|000000|111111|222222|333333|444444|555555|666666|777777|888888|999999|ABCDEF|QWERTY|ASDFGH|FAKE|TEST|DEMO|ADMIN|TRXID|01700000|01711111|01811111|01911111/.test(
+        cleaned
+      )
+    ) {
+      return true;
+    }
+    const hasLetter = /[A-Z]/.test(cleaned);
+    const hasDigit = /[0-9]/.test(cleaned);
+    if (!hasLetter || !hasDigit) return true;
+    return false;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trxId.trim() || trxId.trim().length < 4) return;
-    setSubmitting(true);
+    setErrMsg(null);
     setMsg(null);
+    if (isFakeOrInvalidTrxId(trxId)) {
+      setErrMsg(
+        '❌ ভুল বা ভুয়া ট্রানজেকশন আইডি (Fake TrxID)! অনুগ্রহ করে টাকা পাঠানোর পর মেসেজে পাওয়া আসল ৮–১০ অক্ষরের (ইংরেজি বড় হাতের অক্ষর ও সংখ্যার সমন্বয়ে গঠিত, যেমন: BKA94827X) সঠিক TrxID দিন।'
+      );
+      return;
+    }
+    setSubmitting(true);
     try {
       await onSubmitMembership(payMethod, trxId.trim().toUpperCase());
       setTrxId('');
       setMsg(
-        'আপনার ৳২৯৯ প্রিমিয়াম মেম্বারশিপ পেমেন্ট তথ্য Firestore-এ জমা হয়েছে!'
+        '⏳ আপনার ৳২৯৯ প্রিমিয়াম মেম্বারশিপ পেমেন্ট TrxID জমা হয়েছে! অ্যাডমিন যাচাই করে অনুমোদন (Approve) করলেই মেম্বারশিপ আনলক হবে।'
       );
     } finally {
       setSubmitting(false);
@@ -1112,6 +1137,13 @@ export const MembershipScreen: React.FC<MembershipScreenProps> = ({
           ডিরেক্টরি এবং রেফারেল বোনাস সুবিধা।
         </p>
       </div>
+
+      {errMsg && (
+        <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 text-xs font-extrabold flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{errMsg}</span>
+        </div>
+      )}
 
       {msg && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
@@ -1385,6 +1417,21 @@ export const ReferralScreen: React.FC<ReferralScreenProps> = ({
 interface WalletScreenProps {
   user: AuthSessionUser;
   transactions: WalletAuditRecord[];
+  investments?: Array<{
+    id: string;
+    projectId: string;
+    projectTitle: string;
+    categoryName: string;
+    amountBdt: number;
+    expectedMonthlyProfitBdt: number;
+    profitSharePercent: string;
+    durationMonths: number;
+    paymentMethod: string;
+    transactionId: string;
+    status: 'pending' | 'active' | 'completed' | 'rejected';
+    totalProfitPaidBdt: number;
+    createdAt: string;
+  }>;
   onOpenWithdrawal: () => void;
   onOpenReferral: () => void;
   onOpenMembership: () => void;
@@ -1394,11 +1441,31 @@ interface WalletScreenProps {
 export const WalletScreen: React.FC<WalletScreenProps> = ({
   user,
   transactions,
+  investments = [],
   onOpenWithdrawal,
   onOpenReferral,
   onOpenMembership,
   onBack,
 }) => {
+  const validInvestments = investments.filter((i) => i.status !== 'rejected');
+  const totalInvested = validInvestments.reduce(
+    (sum, i) => sum + (Number(i.amountBdt) || 0),
+    0
+  );
+  const totalExpectedProfit = validInvestments.reduce(
+    (sum, i) =>
+      sum +
+      (Number(i.expectedMonthlyProfitBdt) || 0) *
+        Math.max(1, Number(i.durationMonths) || 1),
+    0
+  );
+  const totalReceivable = totalInvested + totalExpectedProfit;
+  const totalPaidProfit = validInvestments.reduce(
+    (sum, i) => sum + (Number(i.totalProfitPaidBdt) || 0),
+    0
+  );
+  const totalRemaining = Math.max(0, totalReceivable - totalPaidProfit);
+
   return (
     <div className="space-y-5 pb-8">
       <div className="bg-gradient-to-br from-[#042F24] via-[#064E3B] to-[#047857] rounded-3xl p-6 text-white shadow-lg">
@@ -1456,6 +1523,133 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
             <Crown className="w-4 h-4 text-[#FBBF24]" /> ৳২৯৯ প্রিমিয়াম
           </button>
         </div>
+      </div>
+
+      {/* User Investment & Package Financial Statement inside Wallet */}
+      <div className="bg-white rounded-3xl p-5 border-2 border-[#059669]/30 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#064E3B] text-[10px] font-extrabold">
+              📊 ইনভেস্টমেন্ট ও প্যাকেজ প্রাপ্য হিসাব
+            </span>
+            <h3 className="text-base font-extrabold text-slate-900 mt-1">
+              আমার বিনিয়োগ, লাভ ও মোট প্রাপ্য টাকার পূর্ণাঙ্গ বিবরণী
+            </h3>
+          </div>
+          <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-extrabold">
+            মোট অর্ডার/বিনিয়োগ: {investments.length}টি
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <span className="text-[10px] text-slate-500 font-bold block">
+              মোট জমাকৃত আসল
+            </span>
+            <span className="text-base font-extrabold text-slate-900 tabular-nums">
+              ৳{totalInvested.toLocaleString('bn-BD')}
+            </span>
+          </div>
+          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+            <span className="text-[10px] text-emerald-800 font-bold block">
+              নির্ধারিত মোট লাভ
+            </span>
+            <span className="text-base font-extrabold text-[#059669] tabular-nums">
+              +৳{totalExpectedProfit.toLocaleString('bn-BD')}
+            </span>
+          </div>
+          <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300">
+            <span className="text-[10px] text-amber-900 font-bold block">
+              সর্বমোট প্রাপ্য (আসল+লাভ)
+            </span>
+            <span className="text-base font-extrabold text-amber-800 tabular-nums">
+              ৳{totalReceivable.toLocaleString('bn-BD')}
+            </span>
+          </div>
+          <div className="p-3 rounded-2xl bg-emerald-950 text-white border border-emerald-800">
+            <span className="text-[10px] text-emerald-200 font-bold block">
+              বাকি প্রাপ্য (প্রাপ্ত: ৳{totalPaidProfit.toLocaleString('bn-BD')})
+            </span>
+            <span className="text-base font-extrabold text-[#FDE68A] tabular-nums">
+              ৳{totalRemaining.toLocaleString('bn-BD')}
+            </span>
+          </div>
+        </div>
+
+        {investments.length > 0 && (
+          <div className="space-y-2.5 pt-1">
+            {investments.map((inv) => {
+              const months = Math.max(1, Number(inv.durationMonths) || 1);
+              const totalProfit =
+                (Number(inv.expectedMonthlyProfitBdt) || 0) * months;
+              const totalDue = (Number(inv.amountBdt) || 0) + totalProfit;
+              const paid = Number(inv.totalProfitPaidBdt) || 0;
+              const rem = Math.max(0, totalDue - paid);
+              return (
+                <div
+                  key={inv.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-extrabold text-slate-900 block">
+                        {inv.projectTitle}
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        মাধ্যম: {inv.paymentMethod} • TrxID: {inv.transactionId} • মেয়াদ: {months} মাস
+                      </span>
+                    </div>
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                        inv.status === 'active'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : inv.status === 'completed'
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : inv.status === 'rejected'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : 'bg-yellow-100 text-yellow-900 border border-yellow-300'
+                      }`}
+                    >
+                      {inv.status === 'active'
+                        ? '✅ অনুমোদিত ও সক্রিয়'
+                        : inv.status === 'completed'
+                        ? '🎉 আসল+লাভ পরিশোধিত'
+                        : inv.status === 'rejected'
+                        ? '❌ বাতিল (ভুয়া TrxID)'
+                        : '⏳ অ্যাডমিন যাচাই চলছে (লকড)'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/80 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block">জমাকৃত আসল:</span>
+                      <strong className="text-slate-900">
+                        ৳{inv.amountBdt.toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">মোট লাভ ({months} মাস):</span>
+                      <strong className="text-[#059669]">
+                        +৳{totalProfit.toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">সর্বমোট পাবেন (আসল+লাভ):</span>
+                      <strong className="text-amber-700">
+                        ৳{totalDue.toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">বাকি প্রাপ্য:</span>
+                      <strong className="text-[#064E3B]">
+                        ৳{rem.toLocaleString('bn-BD')} (প্রাপ্ত: ৳{paid.toLocaleString('bn-BD')})
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Wallet Transactions List */}

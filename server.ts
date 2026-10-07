@@ -1,6 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import esbuild from 'esbuild';
@@ -10,6 +11,28 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function getTargetBuildDir(target: 'user' | 'admin'): string {
+  const persistentDir = path.join(__dirname, 'build_output', target);
+  if (fs.existsSync(path.join(persistentDir, 'assets'))) {
+    return persistentDir;
+  }
+  const distDir = path.join(__dirname, 'dist', target);
+  if (fs.existsSync(path.join(distDir, 'assets'))) {
+    return distDir;
+  }
+  try {
+    const cfgFile =
+      target === 'user' ? 'vite.user.config.ts' : 'vite.admin.config.ts';
+    execSync(`npx vite build --config ${cfgFile}`, {
+      cwd: __dirname,
+      stdio: 'ignore',
+    });
+  } catch (err) {
+    console.error(`Auto-build failed for ${target}:`, err);
+  }
+  return persistentDir;
+}
 
 const ANDROID_FILE_VIEWER_POLYFILL = `<script>
 (function() {
@@ -113,8 +136,7 @@ function createZipArchive(files: Array<{ name: string; data: Buffer }>): Buffer 
 
 function buildSelfContainedZip(target: 'user' | 'admin'): Buffer | null {
   if (cachedZips[target]) return cachedZips[target];
-
-  const dir = path.join(__dirname, 'dist', target);
+  const dir = getTargetBuildDir(target);
   const assetsDir = path.join(dir, 'assets');
   if (!fs.existsSync(assetsDir)) return null;
 
@@ -194,8 +216,7 @@ function buildSelfContainedZip(target: 'user' | 'admin'): Buffer | null {
 
 function buildSelfContainedHtml(target: 'user' | 'admin'): string | null {
   if (cachedBundles[target]) return cachedBundles[target];
-
-  const dir = path.join(__dirname, 'dist', target);
+  const dir = getTargetBuildDir(target);
   const htmlFile = path.join(dir, target === 'user' ? 'user.html' : 'admin.html');
   if (!fs.existsSync(htmlFile)) return null;
 
@@ -290,36 +311,153 @@ function getFallbackAdvice(userPrompt: string): string {
 ৪. **হিসাব রক্ষণ:** আমাদের অ্যাপের **হিসাব ও ক্যালকুলেটর** টুল ব্যবহার করে প্রতিদিন ক্রয়মূল্য, পরিবহন খরচ ও নিট লাভের হিসাব লিখে রাখুন।`;
 }
 
+function renderDownloadPortalHtml(autoTarget?: 'user' | 'admin' | 'user-html' | 'admin-html'): string {
+  const autoDownloadUrl =
+    autoTarget === 'user'
+      ? '/api/download/user-zip'
+      : autoTarget === 'admin'
+      ? '/api/download/admin-zip'
+      : autoTarget === 'user-html'
+      ? '/api/download/user-app'
+      : autoTarget === 'admin-html'
+      ? '/api/download/admin-app'
+      : '';
+
+  return `<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>অল্প পুঁজির ব্যবসা — অ্যাপ ডাউনলোড সেন্টার</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: #022C22; color: #0F172A; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
+    .card { max-width: 460px; width: 100%; background: #ffffff; border-radius: 24px; padding: 22px; border: 3px solid #D4AF37; box-shadow: 0 20px 50px rgba(0,0,0,0.45); }
+    .badge { display: inline-block; background: #D1FAE5; color: #065F46; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; }
+    h1 { font-size: 20px; margin: 10px 0 4px; color: #064E3B; }
+    p.sub { font-size: 13px; color: #475569; margin: 0 0 16px; line-height: 1.5; }
+    .box-user { background: #ECFDF5; border: 2px solid #34D399; border-radius: 18px; padding: 14px; margin-bottom: 14px; }
+    .box-admin { background: #FFFBEB; border: 2px solid #FBBF24; border-radius: 18px; padding: 14px; margin-bottom: 14px; }
+    .box-title { font-size: 14px; font-weight: 800; margin-bottom: 10px; }
+    .btn { display: block; width: 100%; text-align: center; text-decoration: none; font-size: 13px; font-weight: 800; padding: 13px 14px; border-radius: 12px; margin-bottom: 8px; cursor: pointer; border: none; }
+    .btn:last-child { margin-bottom: 0; }
+    .btn-green { background: #064E3B; color: #ffffff; }
+    .btn-green-outline { background: #ffffff; color: #064E3B; border: 2px solid #059669; }
+    .btn-gold { background: linear-gradient(90deg, #D4AF37, #F59E0B); color: #0F172A; }
+    .btn-gold-outline { background: #ffffff; color: #92400E; border: 2px solid #D97706; }
+    .status { display: none; padding: 10px 12px; border-radius: 12px; background: #DCFCE7; color: #166534; font-size: 12px; font-weight: 700; margin-bottom: 14px; text-align: center; }
+    .nav-row { display: flex; gap: 8px; margin-top: 12px; }
+    .nav-btn { flex: 1; text-align: center; text-decoration: none; padding: 10px; border-radius: 10px; font-size: 12px; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">📲 অফিসিয়াল ডাউনলোড সার্ভার</span>
+    <h1>অল্প পুঁজির ব্যবসা — APK ও App ডাউনলোড</h1>
+    <p class="sub">যেকোনো বাটনে ১ বার চাপ দিলেই সরাসরি আপনার ফোনে ফাইল ডাউনলোড হয়ে যাবে:</p>
+    <div id="dl-status" class="status">✅ ডাউনলোড শুরু হয়েছে! আপনার ব্রাউজারের Downloads ফোল্ডার দেখুন।</div>
+
+    <div class="box-user">
+      <div class="box-title" style="color:#064E3B;">১. User App (গ্রাহক ও উদ্যোক্তাদের অ্যাপ)</div>
+      <a class="btn btn-green" href="/api/download/user-zip" download="Alpo_Pujir_Bebsha_User_App.zip" onclick="showStatus('User App ZIP ডাউনলোড হচ্ছে...')">
+        📦 User App ZIP ডাউনলোড (APK / WebView ফাইল)
+      </a>
+      <a class="btn btn-green-outline" href="/api/download/user-app" download="Alpo_Pujir_Bebsha_User_App.html" onclick="showStatus('User App (.html) ডাউনলোড হচ্ছে...')">
+        📱 User App ডাউনলোড (মোবাইলে সরাসরি ওপেন হবে)
+      </a>
+    </div>
+
+    <div class="box-admin">
+      <div class="box-title" style="color:#92400E;">২. Admin Panel App (অ্যাডমিন কন্ট্রোল অ্যাপ)</div>
+      <a class="btn btn-gold" href="/api/download/admin-zip" download="Alpo_Pujir_Bebsha_Admin_App.zip" onclick="showStatus('Admin App ZIP ডাউনলোড হচ্ছে...')">
+        📦 Admin App ZIP ডাউনলোড (APK / WebView ফাইল)
+      </a>
+      <a class="btn btn-gold-outline" href="/api/download/admin-app" download="Alpo_Pujir_Bebsha_Admin_App.html" onclick="showStatus('Admin App (.html) ডাউনলোড হচ্ছে...')">
+        🔐 Admin App ডাউনলোড (মোবাইলে সরাসরি ওপেন হবে)
+      </a>
+    </div>
+
+    <div class="nav-row">
+      <a class="nav-btn" style="background:#F1F5F9;color:#1E293B;" href="/">← User App ওপেন করুন</a>
+      <a class="nav-btn" style="background:#0F172A;color:#FDE68A;" href="/?app=admin">Admin Panel ওপেন করুন →</a>
+    </div>
+  </div>
+  <script>
+    function showStatus(msg) {
+      var el = document.getElementById('dl-status');
+      if (el) {
+        el.style.display = 'block';
+        el.textContent = '✅ ' + msg;
+      }
+    }
+    var autoUrl = ${JSON.stringify(autoDownloadUrl)};
+    if (autoUrl) {
+      showStatus('স্বয়ংক্রিয়ভাবে ডাউনলোড শুরু হচ্ছে... শুরু না হলে নিচের বাটনে চাপুন।');
+      setTimeout(function() {
+        window.location.href = autoUrl;
+      }, 400);
+    }
+  </script>
+</body>
+</html>`;
+}
+
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: '2mb' }));
 
+  app.get('/download', (req, res) => {
+    const t = String(req.query.target || '').toLowerCase();
+    const autoTarget =
+      t === 'user' || t === 'admin' || t === 'user-html' || t === 'admin-html'
+        ? (t as 'user' | 'admin' | 'user-html' | 'admin-html')
+        : undefined;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderDownloadPortalHtml(autoTarget));
+  });
+
+  app.get('/download/user', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderDownloadPortalHtml('user'));
+  });
+
+  app.get('/download/admin', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderDownloadPortalHtml('admin'));
+  });
+
   app.get('/api/download/user-app', (_req, res) => {
     const bundled = buildSelfContainedHtml('user');
     if (!bundled) {
-      res.status(404).send('User App build not found. Please run npm run build:user.');
+      res.status(404).send('User App build not found.');
       return;
     }
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const buf = Buffer.from(bundled, 'utf-8');
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', String(buf.length));
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="Alpo_Pujir_Bebsha_User_App.html"'
     );
-    res.send(bundled);
+    res.send(buf);
   });
 
   app.get('/api/download/admin-app', (_req, res) => {
     const bundled = buildSelfContainedHtml('admin');
     if (!bundled) {
-      res.status(404).send('Admin App build not found. Please run npm run build:admin.');
+      res.status(404).send('Admin App build not found.');
       return;
     }
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const buf = Buffer.from(bundled, 'utf-8');
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', String(buf.length));
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="Alpo_Pujir_Bebsha_Admin_App.html"'
     );
-    res.send(bundled);
+    res.send(buf);
   });
 
   app.get('/api/download/user-zip', (_req, res) => {
@@ -329,6 +467,8 @@ async function startServer() {
       return;
     }
     res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Length', String(zipBuf.length));
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="Alpo_Pujir_Bebsha_User_App.zip"'
@@ -343,6 +483,8 @@ async function startServer() {
       return;
     }
     res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Length', String(zipBuf.length));
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="Alpo_Pujir_Bebsha_Admin_App.zip"'
@@ -434,6 +576,16 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    setTimeout(() => {
+      try {
+        buildSelfContainedZip('user');
+        buildSelfContainedZip('admin');
+        buildSelfContainedHtml('user');
+        buildSelfContainedHtml('admin');
+      } catch (e) {
+        console.warn('Pre-warm warning:', e);
+      }
+    }, 50);
   });
 }
 

@@ -457,42 +457,21 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
     null
   );
 
-  const downloadStandaloneZipApp = async (target: 'user' | 'admin') => {
-    if (downloadingApp) return;
-    setDownloadingApp(target);
-    try {
-      const endpoint =
-        target === 'user'
-          ? '/api/download/user-zip'
-          : '/api/download/admin-zip';
-      const filename =
-        target === 'user'
-          ? 'Alpo_Pujir_Bebsha_User_App.zip'
-          : 'Alpo_Pujir_Bebsha_Admin_App.zip';
-      const res = await fetch(endpoint, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      const buf = await res.arrayBuffer();
-      const blob = new Blob([buf], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 15000);
-    } catch {
-      downloadProjectFiles(
-        target === 'user' ? USER_ANDROID_KOTLIN_FILES : ADMIN_ANDROID_KOTLIN_FILES,
-        target === 'user'
-          ? 'alpo-pujir-bebsha-USER-APP-playstore-aab-project.txt'
-          : 'alpo-pujir-bebsha-ADMIN-APP-private-apk-project.txt'
-      );
-    } finally {
-      setDownloadingApp(null);
-    }
+  const downloadStandaloneZipApp = (target: 'user' | 'admin') => {
+    const endpoint =
+      target === 'user'
+        ? '/api/download/user-zip'
+        : '/api/download/admin-zip';
+    const filename =
+      target === 'user'
+        ? 'Alpo_Pujir_Bebsha_User_App.zip'
+        : 'Alpo_Pujir_Bebsha_Admin_App.zip';
+    const a = document.createElement('a');
+    a.href = endpoint;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleDownloadAndroidBundle = () => {
@@ -693,6 +672,183 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
         {section === 'dashboard' && (
           <div className="space-y-6">
             {/* 10 Real Firestore KPIs */}
+            {investments.length > 0 && (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#042F24] via-[#064E3B] to-[#022C22] border-2 border-[#D4AF37] text-white space-y-3 shadow-md">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-extrabold">
+                      🔒 TrxID যাচাই ও ইনভেস্টমেন্ট/প্যাকেজ কন্ট্রোল সেন্টার
+                    </span>
+                    <h3 className="text-sm font-extrabold text-white mt-1">
+                      ইউজারদের ইনভেস্টমেন্ট ও প্যাকেজ অর্ডার সমূহ ({investments.filter((i) => i.status === 'pending').length}টি অনুমোদনের অপেক্ষায় • মোট {investments.length}টি)
+                    </h3>
+                    <p className="text-[11px] text-emerald-100/90">
+                      এখানে ইউজারের TrxID যাচাই করে <strong>অনুমোদন</strong> দিলে তবেই ইউজারের প্যাকেজ আনলক হবে এবং ইনভেস্টমেন্ট সচল হবে। ভুয়া TrxID হলে <strong>বাতিল</strong> করুন।
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                  {investments.map((inv) => {
+                    const dur = Math.max(1, Number(inv.durationMonths) || 1);
+                    const monthlyP = Number(inv.expectedMonthlyProfitBdt) || 0;
+                    const totalProfit = monthlyP * dur;
+                    const totalReceivable = (Number(inv.amountBdt) || 0) + totalProfit;
+                    const paidSoFar = Number(inv.totalProfitPaidBdt) || 0;
+                    const remainingBdt = Math.max(0, totalReceivable - paidSoFar);
+                    return (
+                      <div
+                        key={`dash-inv-${inv.id}`}
+                        className="p-3 rounded-xl bg-white text-slate-900 border border-amber-300 space-y-2 shadow-2xs"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div className="text-xs font-extrabold text-slate-900">
+                              {inv.projectTitle}{' '}
+                              <span className="text-[10px] font-bold text-emerald-700">
+                                ({inv.categoryName} • মেয়াদ: {dur} মাস)
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-600 mt-0.5">
+                              ইউজার: <strong>{inv.userName}</strong> ({inv.userPhone}) • মাধ্যম:{' '}
+                              <strong className="text-[#064E3B]">{inv.paymentMethod}</strong> • TrxID:{' '}
+                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-mono font-extrabold">
+                                {inv.transactionId}
+                              </span>
+                            </div>
+                          </div>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              inv.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : inv.status === 'completed'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : inv.status === 'rejected'
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {inv.status === 'active'
+                              ? '✅ অনুমোদিত ও আনলকড'
+                              : inv.status === 'completed'
+                                ? '🎉 সম্পূর্ণ পরিশোধিত'
+                                : inv.status === 'rejected'
+                                  ? '❌ বাতিলকৃত (লকড)'
+                                  : '⏳ পেন্ডিং (ইউজারের কাছে লকড)'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-center">
+                          <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                            <span className="text-[9px] text-slate-500 block">আসল জমা</span>
+                            <span className="text-xs font-black text-slate-900">
+                              ৳{inv.amountBdt.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                            <span className="text-[9px] text-emerald-700 block">মাসিক লাভ</span>
+                            <span className="text-xs font-black text-emerald-800">
+                              +৳{monthlyP.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                            <span className="text-[9px] text-emerald-700 block">মোট লাভ ({dur} মাস)</span>
+                            <span className="text-xs font-black text-emerald-800">
+                              +৳{totalProfit.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-300">
+                            <span className="text-[9px] text-amber-900 font-bold block">মোট প্রাপ্য (আসল+লাভ)</span>
+                            <span className="text-xs font-black text-[#064E3B]">
+                              ৳{totalReceivable.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-blue-50 border border-blue-200">
+                            <span className="text-[9px] text-blue-700 block">পরিশোধিত</span>
+                            <span className="text-xs font-black text-blue-800">
+                              ৳{paidSoFar.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-purple-50 border border-purple-200">
+                            <span className="text-[9px] text-purple-700 block">বাকি প্রাপ্য</span>
+                            <span className="text-xs font-black text-purple-900">
+                              ৳{remainingBdt.toLocaleString('bn-BD')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {onManageInvestment && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {inv.status !== 'active' && inv.status !== 'completed' && (
+                                <button
+                                  type="button"
+                                  onClick={() => onManageInvestment(inv.id, 'approve')}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold cursor-pointer shadow-2xs"
+                                >
+                                  ✅ TrxID সঠিক — অনুমোদন ও আনলক করুন
+                                </button>
+                              )}
+                              {inv.status !== 'rejected' && inv.status !== 'completed' && (
+                                <button
+                                  type="button"
+                                  onClick={() => onManageInvestment(inv.id, 'reject')}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold cursor-pointer"
+                                >
+                                  ❌ বাতিল ও লক করুন
+                                </button>
+                              )}
+                            </div>
+
+                            {(inv.status === 'pending' || inv.status === 'active') && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => onManageInvestment(inv.id, 'pay_profit')}
+                                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950 text-[11px] font-extrabold shadow cursor-pointer"
+                                >
+                                  💸 আসল+লাভ ওয়ালেটে দিন (৳{(inv.amountBdt + inv.expectedMonthlyProfitBdt).toLocaleString('bn-BD')})
+                                </button>
+                                <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-300 rounded-lg px-1.5 py-0.5">
+                                  <input
+                                    type="number"
+                                    placeholder="টাকা"
+                                    value={customPayoutBdt[inv.id] ?? 199}
+                                    onChange={(e) =>
+                                      setCustomPayoutBdt((prev) => ({
+                                        ...prev,
+                                        [inv.id]: Number(e.target.value) || 0,
+                                      }))
+                                    }
+                                    className="w-16 h-6 px-1.5 rounded bg-white border border-emerald-200 text-[11px] font-extrabold text-slate-900"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const amt = customPayoutBdt[inv.id] ?? 199;
+                                      if (amt <= 0) return;
+                                      onAdjustWallet(
+                                        inv.userId,
+                                        amt,
+                                        10,
+                                        `প্যাকেজ/ইনভেস্টমেন্ট বোনাস ও আয় জমা (${inv.projectTitle})`
+                                      );
+                                    }}
+                                    className="px-2 py-1 rounded bg-[#064E3B] text-white text-[10px] font-extrabold cursor-pointer"
+                                  >
+                                    +টাকা বসান
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
                 <span className="text-xs text-slate-500">মোট ব্যবহারকারী (Total Users)</span>
@@ -2092,7 +2248,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                             ইউজার: <strong>{inv.userName}</strong> ({inv.userPhone}) • মাধ্যম: <strong>{inv.paymentMethod}</strong> (TrxID: {inv.transactionId})
                           </div>
                           <div className="text-[11px] font-extrabold text-[#064E3B] mt-0.5">
-                            ক্রয়মূল্য: ৳{inv.amountBdt.toLocaleString('bn-BD')} • ইউজারের লাভ: +৳{inv.expectedMonthlyProfitBdt.toLocaleString('bn-BD')} • মোট প্রদেয়: ৳{(inv.amountBdt + inv.expectedMonthlyProfitBdt).toLocaleString('bn-BD')}
+                            আসল জমা: ৳{inv.amountBdt.toLocaleString('bn-BD')} • মাসিক লাভ: +৳{inv.expectedMonthlyProfitBdt.toLocaleString('bn-BD')} • মোট লাভ ({Math.max(1, inv.durationMonths || 1)} মাস): +৳{(inv.expectedMonthlyProfitBdt * Math.max(1, inv.durationMonths || 1)).toLocaleString('bn-BD')} • মোট প্রাপ্য: ৳{(inv.amountBdt + inv.expectedMonthlyProfitBdt * Math.max(1, inv.durationMonths || 1)).toLocaleString('bn-BD')} • পরিশোধিত: ৳{(inv.totalProfitPaidBdt || 0).toLocaleString('bn-BD')}
                           </div>
                         </div>
 

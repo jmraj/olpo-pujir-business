@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -420,7 +421,7 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
         );
       } catch {}
 
-      // All Investments & Buy-and-Earn Package Orders
+      // All Investments & Buy-and-Earn Package Orders (Initial fetch + Real-time listener below)
       try {
         const invSnap = await getDocs(collection(db, 'investments'));
         setAdminInvestments(
@@ -493,6 +494,63 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
     };
 
     loadAdminData();
+
+    const unsubInv = onSnapshot(
+      collection(db, 'investments'),
+      (snap) => {
+        setAdminInvestments(
+          snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: data.id,
+              userId: data.userId || '',
+              userName: data.userName || 'উদ্যোক্তা সদস্য',
+              userPhone: data.userPhone || '01700000000',
+              projectId: data.projectId || '',
+              projectTitle: data.projectTitle || 'ইনভেস্টমেন্ট প্রজেক্ট',
+              categoryName: data.categoryName || 'ইনভেস্টমেন্ট',
+              amountBdt: Number(data.amountBdt) || 0,
+              expectedMonthlyProfitBdt:
+                Number(data.expectedMonthlyProfitBdt) || 0,
+              profitSharePercent: data.profitSharePercent || '১৫%',
+              durationMonths: Number(data.durationMonths) || 1,
+              paymentMethod: data.paymentMethod || 'bKash',
+              transactionId: data.transactionId || '',
+              status: data.status || 'pending',
+              totalProfitPaidBdt: Number(data.totalProfitPaidBdt) || 0,
+            };
+          })
+        );
+      },
+      () => {}
+    );
+
+    const unsubMem = onSnapshot(
+      collection(db, 'memberships'),
+      (snap) => {
+        setAdminMemberships(
+          snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: data.id,
+              userId: data.userId,
+              userName: data.userName,
+              amountBdt: Number(data.amountBdt) || 299,
+              paymentMethod: data.paymentMethod || 'bKash',
+              transactionReference: data.transactionReference || '',
+              status: data.status || 'pending',
+              createdAt: 'Firestore সংরক্ষিত',
+            };
+          })
+        );
+      },
+      () => {}
+    );
+
+    return () => {
+      unsubInv();
+      unsubMem();
+    };
   }, [currentUser]);
 
   const handleAdminLogout = async () => {
@@ -1025,6 +1083,31 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
               status: nextStatus,
               updatedAt: serverTimestamp(),
             });
+            // Sync user's unlockedPackages in Firestore
+            if (target.userId && target.projectId) {
+              const userRef = doc(db, 'users', target.userId);
+              await runTransaction(db, async (tx) => {
+                const uSnap = await tx.get(userRef);
+                if (uSnap.exists()) {
+                  const existingUnlocked = Array.isArray(uSnap.data().unlockedPackages)
+                    ? uSnap.data().unlockedPackages
+                    : [];
+                  if (action === 'approve') {
+                    if (!existingUnlocked.includes(target.projectId)) {
+                      tx.update(userRef, {
+                        unlockedPackages: [...existingUnlocked, target.projectId],
+                      });
+                    }
+                  } else {
+                    tx.update(userRef, {
+                      unlockedPackages: existingUnlocked.filter(
+                        (pkgId: string) => pkgId !== target.projectId
+                      ),
+                    });
+                  }
+                }
+              });
+            }
           } catch {}
           await writeAdminAuditLog(
             action === 'approve' ? 'APPROVE_INVESTMENT' : 'REJECT_INVESTMENT',
