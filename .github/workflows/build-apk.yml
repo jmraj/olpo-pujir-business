@@ -65,56 +65,55 @@ jobs:
           fi
           echo "Confirmed ./debug.keystore exists."
 
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Build User App & Admin Panel APKs
+        run: gradle :app:assembleDebug :admin-app:assembleDebug --stacktrace --no-daemon
 
-      - name: Verify debug APK
+      - name: Verify User and Admin APKs
         run: |
-          EXPECTED_APK="app/build/outputs/apk/debug/app-debug.apk"
-          if [ ! -e "${EXPECTED_APK}" ]; then
-            echo "ERROR: Expected APK not found at ${EXPECTED_APK}."
-            if [ -d "app/build/outputs/apk" ]; then
-              echo "Discovered APK paths inside app/build/outputs/apk:"
-              find app/build/outputs/apk -type f -name "*.apk" || true
-            fi
-            exit 1
-          fi
-          if [ ! -f "${EXPECTED_APK}" ]; then
-            echo "ERROR: ${EXPECTED_APK} is not a regular file."
-            exit 1
-          fi
-          if [ ! -s "${EXPECTED_APK}" ]; then
-            echo "ERROR: ${EXPECTED_APK} is empty."
-            exit 1
-          fi
-          case "${EXPECTED_APK}" in
-            *.apk) ;;
-            *)
-              echo "ERROR: ${EXPECTED_APK} does not have the .apk extension."
-              exit 1
-              ;;
-          esac
-          echo "Verified exact debug APK: ${EXPECTED_APK}"
+          EXPECTED_USER_APK="app/build/outputs/apk/debug/app-debug.apk"
+          EXPECTED_ADMIN_APK="admin-app/build/outputs/apk/debug/admin-app-debug.apk"
 
-      - name: Upload debug APK artifact
+          if [ ! -f "${EXPECTED_USER_APK}" ] || [ ! -s "${EXPECTED_USER_APK}" ]; then
+            echo "ERROR: User APK not found or empty at ${EXPECTED_USER_APK}."
+            exit 1
+          fi
+          if [ ! -f "${EXPECTED_ADMIN_APK}" ] || [ ! -s "${EXPECTED_ADMIN_APK}" ]; then
+            echo "ERROR: Admin APK not found or empty at ${EXPECTED_ADMIN_APK}."
+            exit 1
+          fi
+
+          cp "${EXPECTED_ADMIN_APK}" "admin-app/build/outputs/apk/debug/admin-debug.apk"
+          echo "Verified User APK: ${EXPECTED_USER_APK}"
+          echo "Verified Admin APK: admin-app/build/outputs/apk/debug/admin-debug.apk"
+
+      - name: Upload User App APK artifact (app-debug-apk)
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Prepare APK release asset
+      - name: Upload Admin Panel APK artifact (admin-debug-apk)
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-debug-apk
+          path: admin-app/build/outputs/apk/debug/admin-debug.apk
+          if-no-files-found: error
+
+      - name: Prepare APK release assets
         id: prepare_asset
         run: |
           RELEASE_TMP_DIR=$(mktemp -d "${RUNNER_TEMP}/apk-release-XXXXXX")
           cp "app/build/outputs/apk/debug/app-debug.apk" "${RELEASE_TMP_DIR}/app-debug.apk"
-          if [ ! -s "${RELEASE_TMP_DIR}/app-debug.apk" ]; then
-            echo "ERROR: Failed to prepare app-debug.apk in temporary directory."
+          cp "admin-app/build/outputs/apk/debug/admin-debug.apk" "${RELEASE_TMP_DIR}/admin-debug.apk"
+          if [ ! -s "${RELEASE_TMP_DIR}/app-debug.apk" ] || [ ! -s "${RELEASE_TMP_DIR}/admin-debug.apk" ]; then
+            echo "ERROR: Failed to prepare app-debug.apk and admin-debug.apk in temporary directory."
             exit 1
           fi
-          echo "apk_path=${RELEASE_TMP_DIR}/app-debug.apk" >> "${GITHUB_OUTPUT}"
+          echo "user_apk_path=${RELEASE_TMP_DIR}/app-debug.apk" >> "${GITHUB_OUTPUT}"
+          echo "admin_apk_path=${RELEASE_TMP_DIR}/admin-debug.apk" >> "${GITHUB_OUTPUT}"
 
-      - name: Publish APK to GitHub Releases
+      - name: Publish APKs to GitHub Releases
         id: publish_release
         continue-on-error: true
         env:
@@ -122,29 +121,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh --version
-          APK_ASSET="${{ steps.prepare_asset.outputs.apk_path }}"
-          if [ ! -f "${APK_ASSET}" ] || [ ! -s "${APK_ASSET}" ]; then
-            echo "ERROR: Prepared APK does not exist or is empty."
-            exit 1
-          fi
-          ASSET_BASENAME=$(basename "${APK_ASSET}")
-          case "${ASSET_BASENAME}" in
-            *.apk) ;;
-            *)
-              echo "ERROR: Release asset does not end in .apk."
-              exit 1
-              ;;
-          esac
-          if [ "${ASSET_BASENAME}" != "app-debug.apk" ]; then
-            echo "ERROR: Release asset filename must be exactly app-debug.apk."
-            exit 1
-          fi
+          USER_APK_ASSET="${{ steps.prepare_asset.outputs.user_apk_path }}"
+          ADMIN_APK_ASSET="${{ steps.prepare_asset.outputs.admin_apk_path }}"
 
           RELEASE_TAG="debug-apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          RELEASE_TITLE="Debug APK Build #${GITHUB_RUN_NUMBER}"
-          RELEASE_NOTES="Automatically generated debug APK built by GitHub Actions (Run #${GITHUB_RUN_NUMBER}, Attempt ${GITHUB_RUN_ATTEMPT}, Commit ${GITHUB_SHA}). Intended for testing only; not a Play Store production release; signed only with a temporary debug keystore."
+          RELEASE_TITLE="APK Build #${GITHUB_RUN_NUMBER} (User App + Admin Panel App)"
+          RELEASE_NOTES="Automatically generated User App APK (app-debug.apk) and Admin Panel APK (admin-debug.apk) built by GitHub Actions (Run #${GITHUB_RUN_NUMBER}, Attempt ${GITHUB_RUN_ATTEMPT}, Commit ${GITHUB_SHA})."
 
-          gh release create "${RELEASE_TAG}" "${APK_ASSET}" \
+          gh release create "${RELEASE_TAG}" "${USER_APK_ASSET}" "${ADMIN_APK_ASSET}" \
             --repo "${GITHUB_REPOSITORY}" \
             --title "${RELEASE_TITLE}" \
             --notes "${RELEASE_NOTES}" \
@@ -157,32 +141,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          RELEASE_TAG="debug-apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          RELEASE_TITLE="Debug APK Build #${GITHUB_RUN_NUMBER}"
-          if [ "${{ steps.publish_release.outcome }}" = "success" ]; then
-            gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}"
-            RELEASE_URL=$(gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json url -q .url)
-            DIRECT_APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/app-debug.apk"
-            echo "Release Tag: ${RELEASE_TAG}"
-            echo "Release Title: ${RELEASE_TITLE}"
-            echo "Release Page URL: ${RELEASE_URL}"
-            echo "APK Filename: app-debug.apk"
-            echo "DIRECT APK DOWNLOAD: ${DIRECT_APK_URL}"
-            echo "Backup Artifact: Actions artifact app-debug-apk remains available as a backup."
-
-            {
-              echo "### DIRECT APK DOWNLOAD"
-              echo "${DIRECT_APK_URL}"
-              echo ""
-              echo "- **Release Tag:** \`${RELEASE_TAG}\`"
-              echo "- **Release Title:** ${RELEASE_TITLE}"
-              echo "- **Release Page:** ${RELEASE_URL}"
-              echo "- **APK Filename:** \`app-debug.apk\`"
-              echo "- **Backup Artifact:** The normal GitHub Actions artifact \`app-debug-apk\` remains available as a backup."
-            } >> "${GITHUB_STEP_SUMMARY}"
-          else
-            echo "::warning::GitHub Release publishing failed."
-            if [ -s "app/build/outputs/apk/debug/app-debug.apk" ]; then
-              echo "The APK build succeeded and the Actions artifact named app-debug-apk remains available."
-            fi
-          fi
+          USER_DIRECT_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/app-debug.apk"
+          ADMIN_DIRECT_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/admin-debug.apk"
+          echo "USER APK DIRECT DOWNLOAD: ${USER_DIRECT_URL}"
+          echo "ADMIN APK DIRECT DOWNLOAD: ${ADMIN_DIRECT_URL}"
+          {
+            echo "### 📱 DIRECT APK DOWNLOAD LINKS"
+            echo "- **১. ইউজার অ্যাপ (User App APK):** ${USER_DIRECT_URL}"
+            echo "- **২. অ্যাডমিন প্যানেল অ্যাপ (Admin Panel APK):** ${ADMIN_DIRECT_URL}"
+            echo ""
+            echo "*(এছাড়া নিচে Artifacts সেকশনে \`app-debug-apk\` এবং \`admin-debug-apk\` দুইটি আলাদা ফাইল হিসেবেও ডাউনলোডের জন্য রেডি আছে)*"
+          } >> "${GITHUB_STEP_SUMMARY}"

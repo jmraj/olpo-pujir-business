@@ -44,24 +44,166 @@ export const BrandLogo: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({
 }) => {
   const dims =
     size === 'lg'
-      ? 'w-20 h-20 rounded-3xl'
+      ? 'w-24 h-24 rounded-[26px]'
       : size === 'sm'
-      ? 'w-10 h-10 rounded-xl'
-      : 'w-14 h-14 rounded-2xl';
-  const iconSize =
-    size === 'lg' ? 'w-10 h-10' : size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
+      ? 'w-11 h-11 rounded-2xl'
+      : 'w-16 h-16 rounded-[20px]';
 
   return (
     <div
-      className={`${dims} bg-gradient-to-br from-[#064E3B] via-[#047857] to-[#059669] p-0.5 shadow-lg shadow-emerald-950/30 inline-flex items-center justify-center relative`}
+      className={`${dims} p-[2px] bg-gradient-to-b from-[#FDE047] via-[#EAB308] to-[#B45309] shadow-lg shadow-emerald-950/40 inline-flex items-center justify-center relative shrink-0`}
     >
-      <div className="w-full h-full rounded-[inherit] bg-gradient-to-br from-[#064E3B] to-[#022C22] flex items-center justify-center relative overflow-hidden border border-[#D4AF37]/40">
-        <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-[#D4AF37]/25 blur-sm" />
-        <div className="relative flex items-center justify-center">
-          <TrendingUp className={`${iconSize} text-[#FBBF24] drop-shadow`} />
-          <Coins className="w-4 h-4 text-emerald-200 absolute -bottom-1 -right-1" />
-        </div>
-      </div>
+      <svg
+        viewBox="0 0 200 200"
+        className="w-full h-full rounded-[inherit] overflow-hidden"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <radialGradient id="apbBg" cx="50%" cy="38%" r="65%">
+            <stop offset="0%" stopColor="#057A28" />
+            <stop offset="65%" stopColor="#024D18" />
+            <stop offset="100%" stopColor="#012B0D" />
+          </radialGradient>
+          <linearGradient id="apbGold" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FEF08A" />
+            <stop offset="45%" stopColor="#FACC15" />
+            <stop offset="100%" stopColor="#D97706" />
+          </linearGradient>
+          <linearGradient id="apbBagSide" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#F59E0B" />
+            <stop offset="100%" stopColor="#B45309" />
+          </linearGradient>
+          <linearGradient id="apbBar" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#4ADE80" />
+            <stop offset="100%" stopColor="#15803D" />
+          </linearGradient>
+        </defs>
+
+        {/* Rich Emerald Background */}
+        <rect width="200" height="200" rx="38" fill="url(#apbBg)" />
+
+        {/* Golden Shopping Bag */}
+        <path
+          d="M66 44 C66 24, 96 24, 96 44"
+          fill="none"
+          stroke="url(#apbGold)"
+          strokeWidth="6.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M78 44 C78 28, 104 28, 104 44"
+          fill="none"
+          stroke="#D97706"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <polygon points="104,42 115,46 118,92 106,96" fill="url(#apbBagSide)" />
+        <polygon points="50,42 104,42 108,96 44,94" fill="url(#apbGold)" />
+        <circle cx="66" cy="48" r="3.5" fill="#024D18" />
+        <circle cx="92" cy="48" r="3.5" fill="#024D18" />
+
+        {/* Green Leaves on Bag */}
+        <path
+          d="M76 86 C64 82, 58 70, 62 60 C72 64, 78 74, 76 86 Z"
+          fill="#047857"
+        />
+        <path
+          d="M78 86 C78 70, 88 56, 102 52 C100 68, 92 80, 78 86 Z"
+          fill="#059669"
+        />
+
+        {/* Rising Green Bars */}
+        <rect x="94" y="84" width="9" height="16" rx="2" fill="url(#apbBar)" />
+        <rect x="106" y="74" width="10" height="26" rx="2" fill="url(#apbBar)" />
+        <rect x="120" y="64" width="10" height="36" rx="2" fill="url(#apbBar)" />
+        <rect x="134" y="52" width="11" height="48" rx="2" fill="url(#apbBar)" />
+        <rect x="148" y="42" width="11" height="58" rx="2" fill="url(#apbBar)" />
+
+        {/* Sweeping Golden Upward Arrow */}
+        <path
+          d="M36 68 C42 105, 82 108, 114 96 C90 100, 56 96, 46 72 Z"
+          fill="url(#apbGold)"
+        />
+        <path
+          d="M88 76 L146 32"
+          stroke="url(#apbGold)"
+          strokeWidth="6.5"
+          strokeLinecap="round"
+        />
+        <polygon points="158,22 138,28 148,42" fill="#FEF08A" />
+
+        {/* Golden Taka Coin & Coin Stack */}
+        <ellipse cx="144" cy="96" rx="13" ry="4" fill="#D97706" />
+        <rect x="131" y="78" width="26" height="18" rx="3" fill="url(#apbGold)" />
+        <ellipse cx="144" cy="78" rx="13" ry="4" fill="#FEF08A" />
+        <circle
+          cx="124"
+          cy="90"
+          r="15"
+          fill="url(#apbGold)"
+          stroke="#B45309"
+          strokeWidth="2"
+        />
+        <text
+          x="124"
+          y="96"
+          textAnchor="middle"
+          fill="#78350F"
+          fontSize="19"
+          fontWeight="900"
+          fontFamily="sans-serif"
+        >
+          ৳
+        </text>
+
+        {/* Bengali Title: অল্প পুঁজির ব্যবসা */}
+        <text
+          x="100"
+          y="134"
+          textAnchor="middle"
+          fill="#FFFFFF"
+          stroke="#012B0D"
+          strokeWidth="3"
+          paintOrder="stroke"
+          fontSize="30"
+          fontWeight="900"
+          fontFamily="'Hind Siliguri', sans-serif"
+        >
+          অল্প পুঁজির
+        </text>
+        <line
+          x1="24"
+          y1="158"
+          x2="44"
+          y2="158"
+          stroke="#FACC15"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <line
+          x1="156"
+          y1="158"
+          x2="176"
+          y2="158"
+          stroke="#FACC15"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <text
+          x="100"
+          y="170"
+          textAnchor="middle"
+          fill="url(#apbGold)"
+          stroke="#012B0D"
+          strokeWidth="3.5"
+          paintOrder="stroke"
+          fontSize="36"
+          fontWeight="900"
+          fontFamily="'Hind Siliguri', sans-serif"
+        >
+          ব্যবসা
+        </text>
+      </svg>
     </div>
   );
 };

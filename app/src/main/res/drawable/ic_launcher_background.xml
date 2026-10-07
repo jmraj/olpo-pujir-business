@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Rich Emerald Green Background -->
+    <path
+        android:fillColor="#024D18"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- Inner Lighter Emerald Glow -->
+    <path
+        android:fillColor="#057A28"
+        android:pathData="M14,14 C14,8 20,8 54,8 C88,8 94,8 94,14 C94,48 94,68 54,68 C14,68 14,48 14,14 Z" />
+    <!-- Golden Frame Accent -->
+    <path
+        android:strokeColor="#EAB308"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000"
+        android:pathData="M18,24 C18,19.5 21.5,16 26,16 L82,16 C86.5,16 90,19.5 90,24 L90,84 C90,88.5 86.5,92 82,92 L26,92 C21.5,92 18,88.5 18,84 Z" />
+</vector>

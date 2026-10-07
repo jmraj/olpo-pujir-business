@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "alpo.pujir.bebsha"
+    namespace = "alpo.pujir.bebsha.admin"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "alpo.pujir.bebsha"
+        applicationId = "alpo.pujir.bebsha.admin"
         minSdk = 24
         targetSdk = 35
         versionCode = 2

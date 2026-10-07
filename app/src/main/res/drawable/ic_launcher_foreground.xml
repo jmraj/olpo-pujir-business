@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <group
+        android:scaleX="0.64"
+        android:scaleY="0.64"
+        android:translateX="36"
+        android:translateY="36">
+        <!-- Bag Handles -->
+        <path
+            android:strokeColor="#FACC15"
+            android:strokeWidth="7"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M64,54 C64,30 96,30 96,54" />
+        <path
+            android:strokeColor="#D97706"
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M78,54 C78,34 106,34 106,54" />
+
+        <!-- Golden Shopping Bag Side & Front -->
+        <path
+            android:fillColor="#D97706"
+            android:pathData="M104,50 L118,55 L122,114 L108,118 Z" />
+        <path
+            android:fillColor="#FACC15"
+            android:pathData="M46,50 L104,50 L108,118 L40,115 Z" />
+
+        <!-- Bag Handle Holes -->
+        <path
+            android:fillColor="#024D18"
+            android:pathData="M60,58 A4,4 0 1,0 68,58 A4,4 0 1,0 60,58 Z" />
+        <path
+            android:fillColor="#024D18"
+            android:pathData="M88,58 A4,4 0 1,0 96,58 A4,4 0 1,0 88,58 Z" />
+
+        <!-- Green Leaves Inside Bag -->
+        <path
+            android:fillColor="#047857"
+            android:pathData="M75,104 C61,99 54,85 59,73 C70,78 77,90 75,104 Z" />
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M77,104 C77,86 89,70 104,65 C102,83 93,97 77,104 Z" />
+
+        <!-- Rising Green Chart Bars -->
+        <path
+            android:fillColor="#22C55E"
+            android:pathData="M95,102 L105,102 L105,124 L95,124 Z" />
+        <path
+            android:fillColor="#22C55E"
+            android:pathData="M109,90 L120,90 L120,124 L109,124 Z" />
+        <path
+            android:fillColor="#16A34A"
+            android:pathData="M124,76 L135,76 L135,124 L124,124 Z" />
+        <path
+            android:fillColor="#22C55E"
+            android:pathData="M139,62 L151,62 L151,124 L139,124 Z" />
+        <path
+            android:fillColor="#4ADE80"
+            android:pathData="M155,48 L167,48 L167,124 L155,124 Z" />
+
+        <!-- Golden Sweeping Arrow -->
+        <path
+            android:fillColor="#FDE047"
+            android:pathData="M30,86 C38,128 84,132 120,118 C92,122 54,118 42,90 Z" />
+        <path
+            android:strokeColor="#FDE047"
+            android:strokeWidth="8"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M88,92 L152,38" />
+        <path
+            android:fillColor="#FEF08A"
+            android:pathData="M166,26 L142,33 L154,50 Z" />
+
+        <!-- Golden Coin Stack & Taka Coin -->
+        <path
+            android:fillColor="#D97706"
+            android:pathData="M136,96 L166,96 L166,122 L136,122 Z" />
+        <path
+            android:fillColor="#FEF08A"
+            android:pathData="M136,96 A15,5 0 1,0 166,96 A15,5 0 1,0 136,96 Z" />
+        <path
+            android:fillColor="#FACC15"
+            android:strokeColor="#B45309"
+            android:strokeWidth="3"
+            android:pathData="M104,112 A20,20 0 1,0 144,112 A20,20 0 1,0 104,112 Z" />
+        <!-- Taka Emblem Center Bar -->
+        <path
+            android:strokeColor="#78350F"
+            android:strokeWidth="4.5"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M120,101 L120,119 C120,123 128,123 130,118 C131,114 126,112 120,113 M114,107 L129,107" />
+
+        <!-- Bottom Golden Banner Bars -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M41,136 L159,136 A7,7 0 0,1 166,143 A7,7 0 0,1 159,150 L41,150 A7,7 0 0,1 34,143 A7,7 0 0,1 41,136 Z" />
+        <path
+            android:fillColor="#FACC15"
+            android:pathData="M54,156 L146,156 A8,8 0 0,1 154,164 A8,8 0 0,1 146,172 L54,172 A8,8 0 0,1 46,164 A8,8 0 0,1 54,156 Z" />
+    </group>
+</vector>

@@ -1,4 +1,4 @@
-package alpo.pujir.bebsha;
+package alpo.pujir.bebsha.admin;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -29,12 +29,12 @@ public class MainActivity extends Activity {
 
         Window window = getWindow();
         if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.parseColor("#042F24"));
-            window.setNavigationBarColor(Color.parseColor("#042F24"));
+            window.setStatusBarColor(Color.parseColor("#032B1E"));
+            window.setNavigationBarColor(Color.parseColor("#032B1E"));
         }
 
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.parseColor("#F4F8F6"));
+        webView.setBackgroundColor(Color.parseColor("#F1F5F3"));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
