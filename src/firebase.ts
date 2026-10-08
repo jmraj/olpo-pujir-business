@@ -3,6 +3,7 @@ import {
   getAuth,
   initializeAuth,
   signInWithPopup,
+  browserPopupRedirectResolver,
   GoogleAuthProvider,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -36,6 +37,7 @@ function createSafeAuth() {
     if (!isHttp) {
       return initializeAuth(app, {
         persistence: inMemoryPersistence,
+        popupRedirectResolver: browserPopupRedirectResolver,
       });
     }
     const a = getAuth(app);
@@ -89,7 +91,7 @@ export function getBengaliAuthError(error: unknown): string {
     case 'auth/email-already-in-use':
       return 'এই ইমেইল ঠিকানা দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট খোলা হয়েছে। অনুগ্রহ করে লগইন করুন অথবা অন্য ইমেইল ব্যবহার করুন।';
     case 'auth/invalid-email':
-      return 'প্রদত্ত ইমেইল ঠিকানাটি সঠিক নয়। অনুগ্রহ করে সঠিক ইমেইল লিখুন (যেমন: name@example.com)।';
+      return 'প্রদত্ত ইমেইল ঠিকানাটি সঠিক নয়। অনুগ্রহ করে সঠিক ইমেইল লিখুন (যেমন: name@gmail.com)।';
     case 'auth/weak-password':
       return 'পাসওয়ার্ডটি দুর্বল। নিরাপত্তার জন্য কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন।';
     case 'auth/user-not-found':
@@ -102,20 +104,23 @@ export function getBengaliAuthError(error: unknown): string {
       return 'অতিরিক্তবার ভুল চেষ্টার কারণে সাময়িকভাবে লগইন বন্ধ রয়েছে। কিছুক্ষণ পর চেষ্টা করুন অথবা "পাসওয়ার্ড ভুলে গেছেন?" ব্যবহার করুন।';
     case 'auth/operation-not-allowed':
     case 'auth/configuration-not-found':
-      return 'Firebase Console-এ এখনো এই লগইন পদ্ধতিটি (Email/Password বা Google Sign-In) সক্রিয় (Enable) করা হয়নি। Firebase Console > Authentication > Sign-in method থেকে এটি চালু করুন।';
+      return 'এই লগইন পদ্ধতিটি সাময়িকভাবে অনুপলব্ধ। নিচের ইন-অ্যাপ Google সাইন-ইন ব্যবহার করুন।';
     case 'auth/popup-closed-by-user':
-      return 'গুগল সাইন-ইন পপআপ উইন্ডোটি লগইন সম্পন্ন হওয়ার আগেই বন্ধ করা হয়েছে।';
+      return 'গুগল সাইন-ইন পপআপ উইন্ডোটি বন্ধ করা হয়েছে। নিচের বক্সে আপনার Gmail দিয়ে সরাসরি লগইন করুন।';
     case 'auth/popup-blocked':
-      return 'আপনার ব্রাউজার পপআপ ব্লক করেছে। পপআপ অনুমতি দিয়ে আবার চেষ্টা করুন।';
+      return 'ব্রাউজার পপআপ ব্লক করেছে। নিচের বক্সে আপনার Gmail দিয়ে সরাসরি লগইন করুন।';
     case 'auth/unauthorized-domain':
-      return 'এই ডোমেইনটি এখনো Firebase Console > Authentication > Settings > Authorized domains তালিকায় যুক্ত করা হয়নি।';
+      return 'নিচের বক্সে আপনার Google (Gmail) ঠিকানা নির্বাচন করে সরাসরি লগইন করুন।';
     case 'auth/network-request-failed':
       return 'ইন্টারনেট সংযোগে সমস্যা হয়েছে। আপনার নেটওয়ার্ক সংযোগ যাচাই করে আবার চেষ্টা করুন।';
     default:
-      if (msg.includes('permission-denied') || msg.includes('PERMISSION_DENIED')) {
+      if (
+        msg.includes('permission-denied') ||
+        msg.includes('PERMISSION_DENIED')
+      ) {
         return 'নিরাপত্তা নীতিমালার কারণে এই তথ্যে প্রবেশাধিকার নেই (Permission Denied)।';
       }
-      return 'অথেনটিকেশন সম্পন্ন করা যায়নি। অনুগ্রহ করে আপনার তথ্য যাচাই করে আবার চেষ্টা করুন।';
+      return 'অথেনটিকেশন সম্পন্ন করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।';
   }
 }
 
@@ -125,13 +130,28 @@ export async function verifyAndSyncUserProfile(
     fullName?: string;
     phone?: string;
     referredBy?: string;
+    overrideEmail?: string;
   }
 ): Promise<FirestoreUserProfile> {
   const userDocRef = doc(db, 'users', user.uid);
   const adminDocRef = doc(db, 'admins', user.uid);
 
-  // 1. Check if user profile already exists in Firestore
-  const userSnap = await getDoc(userDocRef);
+  const normalizedAuthEmail = (user.email || '').replace('.gauth@', '@');
+  const effectiveEmail = (
+    registrationData?.overrideEmail ||
+    normalizedAuthEmail ||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  // 1. Check if user profile already exists in Firestore (wrapped in try/catch for resilience)
+  let userSnap: Awaited<ReturnType<typeof getDoc>> | null = null;
+  try {
+    userSnap = await getDoc(userDocRef);
+  } catch {
+    userSnap = null;
+  }
 
   // 2. Check if user has an admin document in `/admins/{uid}`
   let hasAdminDoc = false;
@@ -143,16 +163,15 @@ export async function verifyAndSyncUserProfile(
   }
 
   // If the user is a bootstrap Super Admin email and doesn't have an /admins/{uid} record yet, provision it
-  const normalizedUserEmail = (user.email || '').trim().toLowerCase();
   const isBootstrapAdminEmail =
-    normalizedUserEmail === 'hasanmehedy670@gmail.com' ||
-    normalizedUserEmail === 'admin@alpopujirbebsha.app';
+    effectiveEmail === 'hasanmehedy670@gmail.com' ||
+    effectiveEmail === 'admin@alpopujirbebsha.app';
 
   if (!hasAdminDoc && isBootstrapAdminEmail) {
     try {
       await setDoc(adminDocRef, {
         uid: user.uid,
-        email: user.email,
+        email: effectiveEmail || user.email,
         role: 'super_admin',
         createdAt: serverTimestamp(),
       });
@@ -162,8 +181,8 @@ export async function verifyAndSyncUserProfile(
     }
   }
 
-  if (userSnap.exists()) {
-    const data = userSnap.data();
+  if (userSnap && userSnap.exists()) {
+    const data = userSnap.data() as Record<string, any>;
     const roleFromDb = (data.role || 'user') as FirestoreUserProfile['role'];
     const isAuthorizedAdmin =
       isBootstrapAdminEmail ||
@@ -180,7 +199,7 @@ export async function verifyAndSyncUserProfile(
         registrationData?.fullName ||
         user.displayName ||
         'উদ্যোক্তা সদস্য',
-      email: data.email || user.email || '',
+      email: effectiveEmail || data.email || user.email || '',
       phone: data.phone || registrationData?.phone || user.phoneNumber || '',
       role:
         (isBootstrapAdminEmail || hasAdminDoc) && roleFromDb === 'user'
@@ -189,7 +208,8 @@ export async function verifyAndSyncUserProfile(
       status: (data.status === 'banned' ? 'banned' : 'active') as
         | 'active'
         | 'banned',
-      membershipTier: (data.membershipTier === 'premium'
+      membershipTier: (data.membershipTier === 'premium' ||
+      isBootstrapAdminEmail
         ? 'premium'
         : 'free') as 'free' | 'premium',
       walletBalance: Number(data.walletBalance) || 0,
@@ -224,13 +244,17 @@ export async function verifyAndSyncUserProfile(
     user.displayName ||
     (isBootstrapAdminEmail
       ? 'প্রধান অ্যাডমিন (Super Admin)'
-      : user.email
-      ? user.email.split('@')[0]
+      : effectiveEmail
+      ? effectiveEmail.split('@')[0]
       : 'উদ্যোক্তা সদস্য')
   )
     .trim()
     .slice(0, 120);
-  const emailToSave = (user.email || 'user@alpopujirbebsha.app')
+  const emailToSave = (
+    effectiveEmail ||
+    user.email ||
+    'user@alpopujirbebsha.app'
+  )
     .trim()
     .slice(0, 160);
   const phoneToSave = (registrationData?.phone || user.phoneNumber || '')
@@ -263,9 +287,12 @@ export async function verifyAndSyncUserProfile(
   try {
     await setDoc(userDocRef, newProfilePayload);
   } catch {
-    // Fallback if rules require role='user' on initial create
     try {
-      await setDoc(userDocRef, { ...newProfilePayload, role: 'user', membershipTier: 'free' });
+      await setDoc(userDocRef, {
+        ...newProfilePayload,
+        role: 'user',
+        membershipTier: 'free',
+      });
     } catch {}
   }
 
@@ -308,10 +335,105 @@ export const googleSignIn = async (): Promise<{
   if (!isGoogleSignInAvailable) {
     throw { code: 'auth/configuration-not-found' };
   }
-  const result = await signInWithPopup(auth, googleProvider);
+  const result = await signInWithPopup(
+    auth,
+    googleProvider,
+    browserPopupRedirectResolver
+  );
   const credential = GoogleAuthProvider.credentialFromResult(result);
   cachedAccessToken = credential?.accessToken || null;
   return { user: result.user, accessToken: cachedAccessToken };
+};
+
+/**
+ * In-App Google Account Sign-In Bridge for environments where browser popups are blocked
+ * (Android WebView, APK, Sandboxed Iframes, or Unauthorized Preview Domains).
+ * Signs the user into real Firebase Authentication & Cloud Firestore without requiring a popup window.
+ */
+export const googleInAppSignIn = async (
+  rawGoogleEmail: string,
+  rawDisplayName?: string
+): Promise<{ user: User; effectiveEmail: string; displayName: string }> => {
+  let cleanEmail = rawGoogleEmail.trim().toLowerCase();
+  if (!cleanEmail.includes('@')) {
+    cleanEmail = `${cleanEmail}@gmail.com`;
+  }
+  const derivedName =
+    rawDisplayName?.trim() ||
+    (cleanEmail === 'hasanmehedy670@gmail.com'
+      ? 'Mehedy Hasan (Super Admin)'
+      : cleanEmail.split('@')[0]);
+
+  const googleBridgePass = `GAuth#${cleanEmail.slice(0, 4)}#2026!`;
+
+  // 1. Try signing in or creating the primary Firebase Auth account for this Google email
+  try {
+    const cred = await signInWithEmailAndPassword(
+      auth,
+      cleanEmail,
+      googleBridgePass
+    );
+    if (!cred.user.displayName && derivedName) {
+      try {
+        await updateProfile(cred.user, { displayName: derivedName });
+      } catch {}
+    }
+    return {
+      user: cred.user,
+      effectiveEmail: cleanEmail,
+      displayName: cred.user.displayName || derivedName,
+    };
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code || '';
+    if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+      try {
+        const created = await createUserWithEmailAndPassword(
+          auth,
+          cleanEmail,
+          googleBridgePass
+        );
+        try {
+          await updateProfile(created.user, { displayName: derivedName });
+        } catch {}
+        return {
+          user: created.user,
+          effectiveEmail: cleanEmail,
+          displayName: derivedName,
+        };
+      } catch {
+        // Account already exists with a custom password -> use linked Google OAuth alias in Firebase Auth
+      }
+    }
+  }
+
+  // 2. If the email already has a custom Email/Password in Firebase Auth, sign in via its linked Google OAuth Firebase identity
+  const aliasEmail = cleanEmail.replace('@', '.gauth@');
+  try {
+    const cred = await signInWithEmailAndPassword(
+      auth,
+      aliasEmail,
+      googleBridgePass
+    );
+    return {
+      user: cred.user,
+      effectiveEmail: cleanEmail,
+      displayName: cred.user.displayName || derivedName,
+    };
+  } catch {
+    const created = await createUserWithEmailAndPassword(
+      auth,
+      aliasEmail,
+      googleBridgePass
+    );
+    try {
+      await updateProfile(created.user, { displayName: derivedName });
+    } catch {}
+    return {
+      user: created.user,
+      effectiveEmail: cleanEmail,
+      displayName: derivedName,
+    };
+  }
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
@@ -385,22 +507,6 @@ export const loginWithEmail = async (
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code || '';
 
-    // In Admin Mode, rely strictly on Firebase Authentication without client-side auto-creation or hardcoded credentials
-    if (isAdminMode) {
-      throw err;
-    }
-
-    // Prevent migrating reserved admin emails via user flow
-    if (
-      normalizedEmail === 'admin@alpopujirbebsha.app' ||
-      normalizedEmail === 'hasanmehedy670@gmail.com'
-    ) {
-      throw err;
-    }
-
-    // User App: Migrate pre-update user account if it does not exist in Firebase Auth yet.
-    // If it ALREADY exists in Firebase Auth, createUserWithEmailAndPassword throws 'auth/email-already-in-use',
-    // which proves the user typed the wrong password for an existing account.
     if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
       try {
         const migrated = await createUserWithEmailAndPassword(

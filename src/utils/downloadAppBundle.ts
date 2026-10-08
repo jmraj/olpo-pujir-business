@@ -1,6 +1,6 @@
 export type DownloadTarget = 'user-zip' | 'admin-zip' | 'user-html' | 'admin-html';
 
-const TARGET_INFO: Record<
+export const TARGET_INFO: Record<
   DownloadTarget,
   {
     endpoint: string;
@@ -35,54 +35,95 @@ const TARGET_INFO: Record<
   },
 };
 
+// Pre-loaded File & Blob URL cache so clicks are 100% synchronous (never loses user gesture!)
+const preloadedFiles: Partial<Record<DownloadTarget, File>> = {};
+const preloadedBlobUrls: Partial<Record<DownloadTarget, string>> = {};
+let preloadStarted = false;
+
+export function preloadAllDownloadBundles(onReady?: () => void): void {
+  if (typeof window === 'undefined' || preloadStarted) return;
+  preloadStarted = true;
+
+  const targets: DownloadTarget[] = [
+    'user-zip',
+    'admin-zip',
+    'user-html',
+    'admin-html',
+  ];
+
+  Promise.all(
+    targets.map(async (t) => {
+      try {
+        const info = TARGET_INFO[t];
+        const res = await fetch(info.endpoint, { credentials: 'include' });
+        if (!res.ok) return;
+        const buf = await res.arrayBuffer();
+        const blob = new Blob([buf], { type: info.mimeType });
+        preloadedBlobUrls[t] = URL.createObjectURL(blob);
+        preloadedFiles[t] = new File([buf], info.filename, {
+          type: info.mimeType,
+        });
+      } catch {}
+    })
+  ).then(() => {
+    if (onReady) onReady();
+  });
+}
+
+export function getPreloadedBlobUrl(target: DownloadTarget): string | undefined {
+  return preloadedBlobUrls[target];
+}
+
 /**
- * Triggers a multi-strategy download that works across:
- * 1. Desktop browsers (Blob download + direct anchor)
- * 2. Android Chrome / Mobile browsers (Direct HTTP Content-Disposition attachment via hidden iframe & anchor)
- * 3. Android WebView / Sandboxed Iframes (Web Share API Level 2 native file save/share fallback)
+ * Synchronously triggers download or native Android share without losing user activation!
  */
-export async function triggerReliableDownload(
+export function triggerReliableDownload(
   target: DownloadTarget,
   options?: {
     preferShare?: boolean;
     onStatus?: (msg: string) => void;
   }
-): Promise<void> {
+): void {
   const info = TARGET_INFO[target];
   const notify = options?.onStatus || (() => {});
 
-  notify(`⏳ ${info.labelBn} প্রস্তুত হচ্ছে...`);
-
-  // If user explicitly tapped "Save/Share to Phone" (native Android sheet)
+  // 1. Synchronous Native Android Share / Save to Phone (must run BEFORE any await!)
   if (options?.preferShare) {
-    try {
-      const res = await fetch(`${info.endpoint}?t=${Date.now()}`, {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Download fetch failed');
-      const buf = await res.arrayBuffer();
-      const file = new File([buf], info.filename, { type: info.mimeType });
-      const nav = navigator as Navigator & {
-        canShare?: (data?: ShareData) => boolean;
-      };
-      if (nav.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
-        await nav.share({
+    const readyFile = preloadedFiles[target];
+    const nav = navigator as Navigator & {
+      canShare?: (data?: ShareData) => boolean;
+    };
+    if (
+      readyFile &&
+      nav.share &&
+      (!nav.canShare || nav.canShare({ files: [readyFile] }))
+    ) {
+      nav
+        .share({
           title: info.filename,
           text: info.labelBn,
-          files: [file],
-        });
-        notify(`✅ ${info.filename} সফলভাবে শেয়ার/সেভ মেনুতে ওপেন হয়েছে!`);
-        return;
-      }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        notify('শেয়ার মেনু বন্ধ করা হয়েছে।');
-        return;
-      }
+          files: [readyFile],
+        })
+        .then(() => {
+          notify(`✅ ${info.filename} সেভ/শেয়ার মেনুতে ওপেন হয়েছে!`);
+        })
+        .catch(() => {});
+      return;
     }
   }
 
-  // Strategy 1: Hidden iframe with direct HTTP attachment URL (triggers Android native DownloadManager without leaving page)
+  // 2. Synchronous Preloaded Blob URL click (0ms delay = keeps 100% user gesture)
+  const readyBlobUrl = preloadedBlobUrls[target];
+  if (readyBlobUrl) {
+    const a = document.createElement('a');
+    a.href = readyBlobUrl;
+    a.download = info.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // 3. Synchronous Direct HTTP Attachment Anchor + Hidden Iframe (for Android DownloadManager)
   try {
     const iframeId = `__dl_frame_${target}`;
     const existing = document.getElementById(iframeId);
@@ -94,41 +135,21 @@ export async function triggerReliableDownload(
     document.body.appendChild(iframe);
   } catch {}
 
-  // Strategy 2: Fetch Blob + ObjectURL anchor click (reliable on desktop and modern mobile browsers with allow-downloads)
-  try {
-    const res = await fetch(`${info.endpoint}?t=${Date.now()}`, {
-      credentials: 'include',
-    });
-    if (res.ok) {
-      const buf = await res.arrayBuffer();
-      const blob = new Blob([buf], { type: info.mimeType });
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = info.filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-      notify(
-        `✅ ${info.filename} ডাউনলোড শুরু হয়েছে! (ডাউনলোড না হলে পাশের "📲 ফোনে সেভ/শেয়ার" বাটনে চাপুন)`
-      );
-      return;
-    }
-  } catch {}
+  if (!readyBlobUrl) {
+    const a = document.createElement('a');
+    a.href = `${info.endpoint}?dl=1`;
+    a.download = info.filename;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 
-  // Strategy 3: Direct anchor fallback
-  const a = document.createElement('a');
-  a.href = `${info.endpoint}?dl=1&t=${Date.now()}`;
-  a.download = info.filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
   notify(`✅ ${info.filename} ডাউনলোড শুরু হয়েছে!`);
 }
 
-export function getChromeIntentUrl(path = '/download'): string {
+export function getChromeIntentUrl(path = '/#download'): string {
   if (typeof window === 'undefined') return path;
   const host = window.location.host;
   const cleanPath = path.startsWith('/') ? path : `/${path}`;

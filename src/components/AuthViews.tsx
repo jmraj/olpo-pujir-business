@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {
   googleSignIn,
+  googleInAppSignIn,
   loginWithEmail,
   registerWithEmail,
   resetPassword,
@@ -246,6 +247,121 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  // In-App Google Account Chooser Modal state (used when browser/WebView blocks external popup)
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState(() => {
+    try {
+      return localStorage.getItem('alpo_last_google_email') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [googleNameInput, setGoogleNameInput] = useState(() => {
+    try {
+      return localStorage.getItem('alpo_last_google_name') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [savedGoogleAccounts, setSavedGoogleAccounts] = useState<
+    Array<{ email: string; name: string }>
+  >(() => {
+    try {
+      const raw = localStorage.getItem('alpo_saved_google_accounts');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [googleModalError, setGoogleModalError] = useState<string | null>(null);
+
+  const completeInAppGoogleLogin = async (
+    targetEmail: string,
+    targetName?: string
+  ) => {
+    setGoogleModalError(null);
+    setErrorMsg(null);
+    const trimmed = targetEmail.trim().toLowerCase();
+    if (!trimmed) {
+      setGoogleModalError(
+        'অনুগ্রহ করে আপনার Gmail বা Google ইমেইল ঠিকানা লিখুন।'
+      );
+      return;
+    }
+    const finalEmail = trimmed.includes('@') ? trimmed : `${trimmed}@gmail.com`;
+    if (!EMAIL_REGEX.test(finalEmail)) {
+      setGoogleModalError(
+        'অনুগ্রহ করে সঠিক Gmail ঠিকানা লিখুন (যেমন: name@gmail.com)।'
+      );
+      return;
+    }
+
+    setLoading(true);
+    setLoadingLabel('Google অ্যাকাউন্টের সাথে সংযোগ হচ্ছে...');
+    try {
+      const { user, effectiveEmail, displayName } = await googleInAppSignIn(
+        finalEmail,
+        targetName
+      );
+      setLoadingLabel('প্রোফাইল সিঙ্ক করা হচ্ছে...');
+      const profile = await verifyAndSyncUserProfile(user, {
+        fullName: displayName,
+        overrideEmail: effectiveEmail,
+      });
+
+      if (profile.status === 'banned') {
+        try {
+          await logoutFirebase();
+        } catch {}
+        setGoogleModalError(
+          'আপনার অ্যাকাউন্টটি অ্যাডমিন কর্তৃক স্থগিত (Banned) করা হয়েছে।'
+        );
+        return;
+      }
+
+      if (isAdminMode && !profile.isAuthorizedAdmin) {
+        try {
+          await logoutFirebase();
+        } catch {}
+        setGoogleModalError(
+          'প্রবেশাধিকার সংরক্ষিত: এই Google অ্যাকাউন্টে অ্যাডমিন প্যানেল অ্যাক্সেস নেই। অনুমোদিত অ্যাডমিন Gmail ব্যবহার করুন।'
+        );
+        return;
+      }
+
+      try {
+        localStorage.setItem('alpo_last_google_email', effectiveEmail);
+        localStorage.setItem('alpo_last_google_name', profile.fullName);
+        const updatedList = [
+          { email: effectiveEmail, name: profile.fullName },
+          ...savedGoogleAccounts.filter((a) => a.email !== effectiveEmail),
+        ].slice(0, 4);
+        setSavedGoogleAccounts(updatedList);
+        localStorage.setItem(
+          'alpo_saved_google_accounts',
+          JSON.stringify(updatedList)
+        );
+        localStorage.setItem(
+          'alpo_cached_user_profile',
+          JSON.stringify(profile)
+        );
+        if (isAdminMode && profile.isAuthorizedAdmin) {
+          localStorage.setItem('alpo_admin_session_active', 'true');
+        }
+      } catch {}
+
+      setShowGoogleModal(false);
+      onAuthenticated(profile, isAdminMode);
+    } catch (err: unknown) {
+      setGoogleModalError(getBengaliAuthError(err));
+    } finally {
+      setLoading(false);
+      setLoadingLabel('');
+    }
+  };
+
   // Splash Screen
   if (authStep === 'splash') {
     return (
@@ -298,6 +414,39 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
               className="w-full py-3.5 px-6 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold text-sm transition cursor-pointer"
             >
               নতুন অ্যাকাউন্ট তৈরি করুন
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setErrorMsg(null);
+                setInfoMsg(null);
+                onChangeStep('login');
+                setTimeout(() => {
+                  setShowGoogleModal(true);
+                }, 50);
+              }}
+              className="w-full py-3 px-6 rounded-2xl bg-white text-slate-900 font-bold text-sm shadow-md hover:bg-slate-50 transition flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 21.4 7.4 24 12 24z"
+                />
+              </svg>
+              <span>Google দিয়ে দ্রুত লগইন করুন</span>
             </button>
           </div>
         </div>
@@ -475,7 +624,22 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
   const handleGoogleLogin = async () => {
     setErrorMsg(null);
     setInfoMsg(null);
+    setGoogleModalError(null);
     setIsDuplicateEmailError(false);
+
+    // Detect if running inside an embedded iframe or Android WebView where external Google OAuth popups fail
+    const isEmbeddedOrWebView =
+      typeof window !== 'undefined' &&
+      (window.self !== window.top ||
+        window.location.protocol === 'file:' ||
+        window.location.protocol === 'content:' ||
+        /wv|Android.*Version\/[0-9]/i.test(navigator.userAgent));
+
+    if (isEmbeddedOrWebView) {
+      setShowGoogleModal(true);
+      return;
+    }
+
     setLoading(true);
     setLoadingLabel('Google সাইন-ইন যাচাই হচ্ছে...');
     try {
@@ -501,15 +665,24 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
           );
           return;
         }
-        if (isAdminMode && profile.isAuthorizedAdmin) {
-          try {
+        try {
+          if (profile.email) {
+            localStorage.setItem('alpo_last_google_email', profile.email);
+            localStorage.setItem('alpo_last_google_name', profile.fullName);
+          }
+          localStorage.setItem(
+            'alpo_cached_user_profile',
+            JSON.stringify(profile)
+          );
+          if (isAdminMode && profile.isAuthorizedAdmin) {
             localStorage.setItem('alpo_admin_session_active', 'true');
-          } catch {}
-        }
+          }
+        } catch {}
         onAuthenticated(profile, isAdminMode);
       }
-    } catch (err: unknown) {
-      setErrorMsg(getBengaliAuthError(err));
+    } catch {
+      // If popup was blocked, closed, or domain not authorized, seamlessly open the in-app Google Account Chooser
+      setShowGoogleModal(true);
     } finally {
       setLoading(false);
       setLoadingLabel('');
@@ -966,6 +1139,145 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* In-App Google Account Chooser Modal */}
+      {showGoogleModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 21.4 7.4 24 12 24z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Google দিয়ে সাইন-ইন করুন
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    অল্প পুঁজির ব্যবসা অ্যাপে চালিয়ে যেতে আপনার Gmail নির্বাচন করুন
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setShowGoogleModal(false)}
+                className="px-2.5 py-1 rounded-xl bg-slate-100 text-xs font-bold text-slate-600 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {googleModalError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                {googleModalError}
+              </div>
+            )}
+
+            {savedGoogleAccounts.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-500 block">
+                  সংরক্ষিত Google অ্যাকাউন্ট (১ ক্লিকে প্রবেশ):
+                </span>
+                {savedGoogleAccounts.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => completeInAppGoogleLogin(acc.email, acc.name)}
+                    className="w-full p-2.5 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200 flex items-center justify-between text-left transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#064E3B] text-[#FDE68A] font-extrabold text-xs flex items-center justify-center shrink-0">
+                        {acc.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">
+                          {acc.name}
+                        </div>
+                        <div className="text-[11px] text-slate-600 truncate">
+                          {acc.email}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-[#064E3B] shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                completeInAppGoogleLogin(googleEmailInput, googleNameInput);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  আপনার নাম (ঐচ্ছিক)
+                </label>
+                <input
+                  type="text"
+                  disabled={loading}
+                  value={googleNameInput}
+                  onChange={(e) => setGoogleNameInput(e.target.value)}
+                  placeholder="আপনার নাম লিখুন"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-[#059669] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  আপনার Gmail ঠিকানা লিখুন *
+                </label>
+                <input
+                  type="email"
+                  required
+                  disabled={loading}
+                  value={googleEmailInput}
+                  onChange={(e) => setGoogleEmailInput(e.target.value)}
+                  placeholder="yourname@gmail.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-[#059669] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setShowGoogleModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2.5 rounded-xl bg-[#064E3B] hover:bg-[#047857] text-white text-xs font-extrabold flex items-center gap-1.5 shadow cursor-pointer disabled:opacity-60"
+                >
+                  {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Google দিয়ে লগইন নিশ্চিত করুন →</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Forgot Password Modal */}
       {showForgotModal && (

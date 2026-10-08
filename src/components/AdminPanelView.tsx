@@ -639,22 +639,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadUserAppBundle}
-              className="px-3.5 py-2 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-[#FBBF24]" />
-              <span>ইউজার অ্যাপ ZIP (.zip)</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadAdminAppBundle}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>অ্যাডমিন অ্যাপ ZIP (.zip)</span>
-            </button>
             {(['7d', '30d', 'all'] as const).map((tf) => (
               <button
                 key={tf}

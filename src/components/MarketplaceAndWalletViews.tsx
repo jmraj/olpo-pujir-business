@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { triggerReliableDownload } from '../utils/downloadAppBundle';
 import {
   Store,
   Search,
@@ -2291,45 +2290,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </div>
             <ChevronRight className="w-5 h-5 text-[#064E3B]" />
           </button>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-amber-200/80">
-            <button
-              type="button"
-              onClick={() => triggerReliableDownload('user-zip')}
-              className="py-2.5 px-3 rounded-xl bg-[#064E3B] hover:bg-[#047857] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow cursor-pointer"
-            >
-              <ArrowDownToLine className="w-4 h-4 text-[#FBBF24]" />
-              <span>ইউজার অ্যাপ ZIP ডাউনলোড (.zip)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => triggerReliableDownload('admin-zip')}
-              className="py-2.5 px-3 rounded-xl bg-[#D4AF37] hover:brightness-105 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow cursor-pointer"
-            >
-              <ArrowDownToLine className="w-4 h-4" />
-              <span>অ্যাডমিন অ্যাপ ZIP ডাউনলোড (.zip)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                triggerReliableDownload('user-zip', { preferShare: true })
-              }
-              className="py-2 px-3 rounded-xl bg-emerald-700 text-white text-[11px] font-extrabold flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>📲 User ZIP ফোনে সেভ/শেয়ার</span>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                triggerReliableDownload('admin-zip', { preferShare: true })
-              }
-              className="py-2 px-3 rounded-xl bg-amber-700 text-white text-[11px] font-extrabold flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>📲 Admin ZIP ফোনে সেভ/শেয়ার</span>
-            </button>
-          </div>
         </div>
       )}
 
