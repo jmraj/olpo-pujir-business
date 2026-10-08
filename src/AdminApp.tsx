@@ -395,22 +395,44 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
       // All Withdrawals
       try {
         const allWSnap = await getDocs(collection(db, 'withdrawals'));
-        setAdminWithdrawals(
-          allWSnap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: data.id,
-              userId: data.userId,
-              userName: data.userName,
-              amountBdt: Number(data.amountBdt) || 0,
-              method: data.method || 'bKash',
-              accountNumber: data.accountNumber || '',
-              status: data.status || 'pending',
-              rejectionReason: data.rejectionReason,
-              createdAt: 'Firestore সংরক্ষিত',
-            };
-          })
-        );
+        const loadedW: WithdrawalRecord[] = [];
+        for (const d of allWSnap.docs) {
+          const data = d.data();
+          const wAmt = Number(data.amountBdt) || 0;
+          let wStatus = data.status || 'pending';
+          let wReason = data.rejectionReason;
+          if (wStatus === 'pending') {
+            try {
+              const uSnap = await getDocs(
+                query(collection(db, 'users'), where('uid', '==', data.userId))
+              );
+              const uBal = !uSnap.empty
+                ? Number(uSnap.docs[0].data().walletBalance) || 0
+                : 0;
+              if (uBal < 100 || uBal < wAmt) {
+                wStatus = 'rejected';
+                wReason = `অ্যাকাউন্টে পর্যাপ্ত বাস্তব ব্যালেন্স নেই (বর্তমান ব্যালেন্স: ৳${uBal})`;
+                await updateDoc(doc(db, 'withdrawals', data.id), {
+                  status: 'rejected',
+                  rejectionReason: wReason,
+                  updatedAt: serverTimestamp(),
+                });
+              }
+            } catch {}
+          }
+          loadedW.push({
+            id: data.id,
+            userId: data.userId,
+            userName: data.userName,
+            amountBdt: wAmt,
+            method: data.method || 'bKash',
+            accountNumber: data.accountNumber || '',
+            status: wStatus,
+            rejectionReason: wReason,
+            createdAt: 'Firestore সংরক্ষিত',
+          });
+        }
+        setAdminWithdrawals(loadedW);
       } catch {}
 
       // All Memberships
@@ -820,6 +842,20 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
         const targetW = adminWithdrawals.find((w) => w.id === id);
         if (!targetW || targetW.status !== 'pending') return;
 
+        const targetUser = adminUsers.find((u) => u.uid === targetW.userId);
+        const userRealBal = Math.max(0, Number(targetUser?.walletBalance) || 0);
+
+        let finalStatus = status;
+        let finalReason = reason;
+
+        if (
+          status === 'approved' &&
+          (userRealBal < 100 || userRealBal < targetW.amountBdt)
+        ) {
+          finalStatus = 'rejected';
+          finalReason = `অ্যাকাউন্টে পর্যাপ্ত বাস্তব ব্যালেন্স নেই (বর্তমান ব্যালেন্স: ৳${userRealBal})`;
+        }
+
         try {
           await runTransaction(db, async (transaction) => {
             const wRef = doc(db, 'withdrawals', id);
@@ -830,29 +866,31 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
               throw new Error('Already processed');
             }
 
-            if (status === 'approved') {
-              const userRef = doc(db, 'users', wData.userId);
-              const uSnap = await transaction.get(userRef);
-              if (uSnap.exists()) {
-                const uData = uSnap.data();
-                const curBal = Number(uData.walletBalance) || 0;
-                const nextBal = Math.max(
-                  0,
-                  curBal - (Number(wData.amountBdt) || 0)
-                );
-                transaction.update(userRef, {
-                  walletBalance: nextBal,
-                  updatedAt: serverTimestamp(),
-                });
-              }
+            const userRef = doc(db, 'users', wData.userId);
+            const uSnap = await transaction.get(userRef);
+            const curBal = uSnap.exists()
+              ? Math.max(0, Number(uSnap.data().walletBalance) || 0)
+              : 0;
+            const reqAmt = Number(wData.amountBdt) || 0;
+
+            if (finalStatus === 'approved' && curBal >= 100 && curBal >= reqAmt) {
+              const nextBal = Math.max(0, curBal - reqAmt);
+              transaction.update(userRef, {
+                walletBalance: nextBal,
+                updatedAt: serverTimestamp(),
+              });
               transaction.update(wRef, {
                 status: 'approved',
                 updatedAt: serverTimestamp(),
               });
             } else {
+              finalStatus = 'rejected';
+              finalReason =
+                finalReason ||
+                `অ্যাকাউন্টে পর্যাপ্ত বাস্তব ব্যালেন্স নেই (বর্তমান ব্যালেন্স: ৳${curBal})`;
               transaction.update(wRef, {
                 status: 'rejected',
-                rejectionReason: reason || 'তথ্য অসম্পূর্ণ',
+                rejectionReason: finalReason,
                 updatedAt: serverTimestamp(),
               });
             }
@@ -861,10 +899,12 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
 
         setAdminWithdrawals((prev) =>
           prev.map((w) =>
-            w.id === id ? { ...w, status, rejectionReason: reason } : w
+            w.id === id
+              ? { ...w, status: finalStatus, rejectionReason: finalReason }
+              : w
           )
         );
-        if (status === 'approved') {
+        if (finalStatus === 'approved') {
           setAdminUsers((prev) =>
             prev.map((u) =>
               u.uid === targetW.userId
@@ -880,11 +920,11 @@ export default function AdminApp({ onExitToUserPreview }: AdminAppProps) {
           );
         }
         await writeAdminAuditLog(
-          status === 'approved' ? 'APPROVE_WITHDRAWAL' : 'REJECT_WITHDRAWAL',
+          finalStatus === 'approved' ? 'APPROVE_WITHDRAWAL' : 'REJECT_WITHDRAWAL',
           id,
-          reason || `উইথড্রয়াল ${status} (৳${targetW.amountBdt})`,
+          finalReason || `উইথড্রয়াল ${finalStatus} (৳${targetW.amountBdt})`,
           'pending',
-          status
+          finalStatus
         );
       }}
       memberships={adminMemberships}

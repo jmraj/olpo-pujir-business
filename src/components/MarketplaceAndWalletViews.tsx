@@ -1566,12 +1566,14 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   onOpenMembership,
   onBack,
 }) => {
-  const validInvestments = investments.filter((i) => i.status !== 'rejected');
-  const totalInvested = validInvestments.reduce(
+  const verifiedInvestments = investments.filter(
+    (i) => i.status === 'active' || i.status === 'completed'
+  );
+  const totalInvested = verifiedInvestments.reduce(
     (sum, i) => sum + (Number(i.amountBdt) || 0),
     0
   );
-  const totalExpectedProfit = validInvestments.reduce(
+  const totalExpectedProfit = verifiedInvestments.reduce(
     (sum, i) =>
       sum +
       (Number(i.expectedMonthlyProfitBdt) || 0) *
@@ -1579,7 +1581,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
     0
   );
   const totalReceivable = totalInvested + totalExpectedProfit;
-  const totalPaidProfit = validInvestments.reduce(
+  const totalPaidProfit = verifiedInvestments.reduce(
     (sum, i) => sum + (Number(i.totalProfitPaidBdt) || 0),
     0
   );
@@ -1598,13 +1600,13 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 rounded-2xl bg-black/25 border border-white/10">
             <span className="text-xs text-emerald-200 flex items-center gap-1.5">
-              <Wallet className="w-4 h-4 text-[#FBBF24]" /> মোট ওয়ালেট ব্যালেন্স
+              <Wallet className="w-4 h-4 text-[#FBBF24]" /> মোট বাস্তব ওয়ালেট ব্যালেন্স
             </span>
             <div className="text-3xl font-extrabold text-white mt-1 tabular-nums">
-              ৳{user.walletBalance.toLocaleString('bn-BD')}
+              ৳{Math.max(0, Number(user.walletBalance) || 0).toLocaleString('bn-BD')}
             </div>
             <p className="text-[11px] text-emerald-200/80 mt-1">
-              সর্বনিম্ন ৳১০০ হলেই বিকাশ/নগদে উত্তোলনযোগ্য
+              বাস্তব ব্যালেন্স সর্বনিম্ন ৳১০০ হলেই বিকাশ/নগদে উত্তোলনযোগ্য
             </p>
           </div>
 
@@ -1649,21 +1651,21 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#064E3B] text-[10px] font-extrabold">
-              📊 ইনভেস্টমেন্ট ও প্যাকেজ প্রাপ্য হিসাব
+              📊 ভেরিফায়েড ইনভেস্টমেন্ট ও প্যাকেজ প্রাপ্য হিসাব
             </span>
             <h3 className="text-base font-extrabold text-slate-900 mt-1">
-              আমার বিনিয়োগ, লাভ ও মোট প্রাপ্য টাকার পূর্ণাঙ্গ বিবরণী
+              আমার অনুমোদিত বিনিয়োগ, লাভ ও মোট প্রাপ্য টাকার পূর্ণাঙ্গ বিবরণী
             </h3>
           </div>
           <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-extrabold">
-            মোট অর্ডার/বিনিয়োগ: {investments.length}টি
+            সক্রিয় বিনিয়োগ: {verifiedInvestments.length}টি
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
             <span className="text-[10px] text-slate-500 font-bold block">
-              মোট জমাকৃত আসল
+              ভেরিফায়েড আসল জমা
             </span>
             <span className="text-base font-extrabold text-slate-900 tabular-nums">
               ৳{totalInvested.toLocaleString('bn-BD')}
@@ -1698,10 +1700,15 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
         {investments.length > 0 && (
           <div className="space-y-2.5 pt-1">
             {investments.map((inv) => {
+              const isVerified =
+                inv.status === 'active' || inv.status === 'completed';
               const months = Math.max(1, Number(inv.durationMonths) || 1);
-              const totalProfit =
-                (Number(inv.expectedMonthlyProfitBdt) || 0) * months;
-              const totalDue = (Number(inv.amountBdt) || 0) + totalProfit;
+              const totalProfit = isVerified
+                ? (Number(inv.expectedMonthlyProfitBdt) || 0) * months
+                : 0;
+              const totalDue = isVerified
+                ? (Number(inv.amountBdt) || 0) + totalProfit
+                : 0;
               const paid = Number(inv.totalProfitPaidBdt) || 0;
               const rem = Math.max(0, totalDue - paid);
               return (
@@ -1740,21 +1747,21 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/80 text-[11px]">
                     <div>
-                      <span className="text-slate-500 block">জমাকৃত আসল:</span>
+                      <span className="text-slate-500 block">রিকোয়েস্টকৃত আসল:</span>
                       <strong className="text-slate-900">
                         ৳{inv.amountBdt.toLocaleString('bn-BD')}
                       </strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">মোট লাভ ({months} মাস):</span>
+                      <span className="text-slate-500 block">অনুমোদিত লাভ ({months} মাস):</span>
                       <strong className="text-[#059669]">
-                        +৳{totalProfit.toLocaleString('bn-BD')}
+                        {isVerified ? `+৳${totalProfit.toLocaleString('bn-BD')}` : '৳০ (যাচাই চলছে)'}
                       </strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">সর্বমোট পাবেন (আসল+লাভ):</span>
+                      <span className="text-slate-500 block">ভেরিফায়েড প্রাপ্য:</span>
                       <strong className="text-amber-700">
-                        ৳{totalDue.toLocaleString('bn-BD')}
+                        {isVerified ? `৳${totalDue.toLocaleString('bn-BD')}` : '৳০ (অপেক্ষমাণ)'}
                       </strong>
                     </div>
                     <div>
@@ -1840,7 +1847,18 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
   onCancelWithdrawal,
   onBack,
 }) => {
-  const [amount, setAmount] = useState('200');
+  const realWalletBalance = Math.max(0, Number(user.walletBalance) || 0);
+  const pendingWithdrawalTotal = withdrawals
+    .filter((w) => w.status === 'pending')
+    .reduce((sum, w) => sum + (Number(w.amountBdt) || 0), 0);
+  const withdrawableBalance = Math.max(
+    0,
+    realWalletBalance - pendingWithdrawalTotal
+  );
+
+  const [amount, setAmount] = useState(
+    withdrawableBalance >= 100 ? String(withdrawableBalance) : ''
+  );
   const [method, setMethod] = useState<'bKash' | 'Nagad' | 'Bank'>('bKash');
   const [accountNumber, setAccountNumber] = useState(user.phone || '');
   const [submitting, setSubmitting] = useState(false);
@@ -1852,19 +1870,33 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
     const numAmt = Number(amount) || 0;
+
+    if (realWalletBalance <= 0 || withdrawableBalance < 100) {
+      setErrorMsg(
+        `❌ আপনার অ্যাকাউন্টে উত্তোলনযোগ্য বাস্তব টাকা নেই (বর্তমান ব্যালেন্স: ৳${realWalletBalance.toLocaleString('bn-BD')})। জিরো ব্যালেন্স বা ৳১০০-এর কম থাকলে টাকা উত্তোলন করা যাবে না।`
+      );
+      return;
+    }
     if (numAmt < 100) {
-      setErrorMsg('সর্বনিম্ন ৳১০০ টাকা উত্তোলনের রিকোয়েস্ট করা যাবে।');
+      setErrorMsg('❌ সর্বনিম্ন ৳১০০ টাকা উত্তোলনের রিকোয়েস্ট করা যাবে।');
+      return;
+    }
+    if (numAmt > withdrawableBalance) {
+      setErrorMsg(
+        `❌ আপনার ওয়ালেটে পর্যাপ্ত বাস্তব ব্যালেন্স নেই! আপনার উত্তোলনযোগ্য ব্যালেন্স ৳${withdrawableBalance.toLocaleString('bn-BD')}, তাই আপনি ৳${numAmt.toLocaleString('bn-BD')} উত্তোলন করতে পারবেন না।`
+      );
       return;
     }
     if (accountNumber.trim().length < 5) {
-      setErrorMsg('অনুগ্রহ করে সঠিক বিকাশ/নগদ বা ব্যাংক অ্যাকাউন্ট নম্বর দিন।');
+      setErrorMsg('❌ অনুগ্রহ করে সঠিক বিকাশ/নগদ বা ব্যাংক অ্যাকাউন্ট নম্বর দিন।');
       return;
     }
     setSubmitting(true);
     try {
       await onRequestWithdrawal(numAmt, method, accountNumber.trim());
+      setAmount('');
       setSuccessMsg(
-        `৳${numAmt} (${method}) উত্তোলনের রিকোয়েস্ট সফলভাবে Firestore-এ জমা হয়েছে!`
+        `✅ ৳${numAmt.toLocaleString('bn-BD')} (${method}) উত্তোলনের রিকোয়েস্ট সফলভাবে জমা হয়েছে!`
       );
     } catch (err: any) {
       setErrorMsg(err?.message || 'রিকোয়েস্ট পাঠানো যায়নি।');
@@ -1887,7 +1919,8 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
           (Withdrawal)
         </h2>
         <p className="text-xs text-emerald-100/85 mt-0.5">
-          বর্তমান ওয়ালেট ব্যালেন্স: <strong>৳{user.walletBalance}</strong> •
+          বর্তমান বাস্তব ব্যালেন্স: <strong>৳{realWalletBalance.toLocaleString('bn-BD')}</strong> •
+          উত্তোলনযোগ্য: <strong>৳{withdrawableBalance.toLocaleString('bn-BD')}</strong> •
           সর্বনিম্ন উত্তোলন: ৳১০০
         </p>
       </div>
@@ -1897,8 +1930,16 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
           নতুন উত্তোলন রিকোয়েস্ট ফর্ম
         </h3>
 
+        {withdrawableBalance < 100 && (
+          <div className="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 text-xs font-bold leading-relaxed">
+            ⚠️ আপনার অ্যাকাউন্টে বর্তমানে উত্তোলনযোগ্য বাস্তব টাকা নেই (বর্তমান ব্যালেন্স: <strong>৳{realWalletBalance.toLocaleString('bn-BD')}</strong>
+            {pendingWithdrawalTotal > 0 ? `, পেন্ডিং রিকোয়েস্ট: ৳${pendingWithdrawalTotal.toLocaleString('bn-BD')}` : ''})।
+            অ্যাকাউন্টে কমপক্ষে <strong>৳১০০ বাস্তব টাকা</strong> না থাকা পর্যন্ত টাকা উত্তোলন করা যাবে না।
+          </div>
+        )}
+
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
             {errorMsg}
           </div>
         )}
@@ -1917,7 +1958,8 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white font-semibold"
+                disabled={withdrawableBalance < 100}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white font-semibold disabled:bg-slate-100 disabled:text-slate-400"
               >
                 <option value="bKash">বিকাশ (bKash Personal)</option>
                 <option value="Nagad">নগদ (Nagad Personal)</option>
@@ -1926,15 +1968,18 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                টাকার পরিমাণ (৳ BDT) *
+                টাকার পরিমাণ (৳ BDT — সর্বোচ্চ: ৳{withdrawableBalance.toLocaleString('bn-BD')}) *
               </label>
               <input
                 type="number"
                 min={100}
+                max={withdrawableBalance}
                 required
+                disabled={withdrawableBalance < 100}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold"
+                placeholder={withdrawableBalance >= 100 ? 'সর্বনিম্ন ১০০' : 'পর্যাপ্ত ব্যালেন্স নেই (৳০)'}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
           </div>
@@ -1946,20 +1991,23 @@ export const WithdrawalScreen: React.FC<WithdrawalScreenProps> = ({
             <input
               type="text"
               required
+              disabled={withdrawableBalance < 100}
               value={accountNumber}
               onChange={(e) => setAccountNumber(e.target.value)}
               placeholder="017XXXXXXXX"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm disabled:bg-slate-100 disabled:text-slate-400"
             />
           </div>
 
           <button
             type="submit"
-            disabled={submitting}
-            className="px-6 py-3 rounded-xl bg-[#064E3B] text-white font-bold text-xs shadow cursor-pointer disabled:opacity-60"
+            disabled={submitting || withdrawableBalance < 100}
+            className="px-6 py-3 rounded-xl bg-[#064E3B] text-white font-bold text-xs shadow cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting
               ? 'রিকোয়েস্ট জমা হচ্ছে...'
+              : withdrawableBalance < 100
+              ? 'পর্যাপ্ত ব্যালেন্স নেই (ন্যূনতম ৳১০০ প্রয়োজন)'
               : 'উত্তোলন রিকোয়েস্ট সাবমিট করুন'}
           </button>
         </form>

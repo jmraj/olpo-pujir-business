@@ -382,13 +382,16 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
     (sum, u) => sum + (u.referralCount || (u.referredBy ? 1 : 0)),
     0
   );
-  const verifiedMembershipCount = Math.max(
-    premiumMembersCount,
-    memberships.filter((m) => m.status === 'verified').length
+  const verifiedMembershipsList = memberships.filter(
+    (m) => m.status === 'verified'
   );
-  const membershipRevenueBdt = verifiedMembershipCount * 299;
+  const verifiedMembershipCount = verifiedMembershipsList.length;
+  const membershipRevenueBdt = verifiedMembershipsList.reduce(
+    (sum, m) => sum + (Number(m.amountBdt) || 0),
+    0
+  );
   const ordersRevenueBdt = orders
-    .filter((o) => o.status !== 'cancelled')
+    .filter((o) => o.status === 'completed')
     .reduce((sum, o) => sum + (Number(o.totalPriceBdt) || 0), 0);
   const totalRevenueBdt = membershipRevenueBdt + ordersRevenueBdt;
 
@@ -698,30 +701,22 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
         {/* SECTION: DASHBOARD */}
         {section === 'dashboard' && (
           <div className="space-y-6">
-            {/* ADMIN MASTER REVENUE ACCOUNT & 6-MODULE USER WORK PAYOUT CENTER */}
+            {/* ADMIN MASTER REVENUE ACCOUNT (STRICTLY VERIFIED REAL MONEY ONLY) */}
             {(() => {
-              const validWorkSubs = workSubmissions.filter(
-                (w) => w.status !== 'rejected'
-              );
-              const workGrossRev = validWorkSubs.reduce(
-                (s, w) => s + (Number(w.adminGrossRevenueBdt) || 0),
-                0
-              );
-              const workPaidToUsers = workSubmissions.reduce(
-                (s, w) => s + (Number(w.paidToUserBdt) || 0),
-                0
-              );
-              const workPendingToUsers = validWorkSubs
-                .filter((w) => w.status === 'pending_admin_payout')
-                .reduce((s, w) => s + (Number(w.userPayableBdt) || 0), 0);
               const activePkgAndInvRev = investments
                 .filter((i) => i.status === 'active' || i.status === 'completed')
                 .reduce((s, i) => s + (Number(i.amountBdt) || 0), 0);
+              const totalPaidInvestmentProfit = investments
+                .filter((i) => i.status === 'active' || i.status === 'completed')
+                .reduce((s, i) => s + (Number(i.totalProfitPaidBdt) || 0), 0);
+              const totalApprovedWithdrawals = withdrawals
+                .filter((w) => w.status === 'approved')
+                .reduce((s, w) => s + (Number(w.amountBdt) || 0), 0);
               const totalAdminMasterAccountBdt =
-                totalRevenueBdt + workGrossRev + activePkgAndInvRev;
+                totalRevenueBdt + activePkgAndInvRev;
               const adminNetProfitKeptBdt = Math.max(
                 0,
-                totalAdminMasterAccountBdt - workPaidToUsers
+                totalAdminMasterAccountBdt - totalPaidInvestmentProfit
               );
 
               return (
@@ -729,13 +724,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-3">
                     <div>
                       <span className="px-3 py-0.5 rounded-full bg-[#D4AF37] text-slate-950 text-[10px] font-black">
-                        🏦 অ্যাডমিন মূল অ্যাকাউন্ট (Admin Master Revenue Account) ও ইউজার পেমেন্ট ভল্ট
+                        🏦 অ্যাডমিন মূল অ্যাকাউন্ট (১০০% বাস্তব ও ভেরিফায়েড টাকার হিসাব)
                       </span>
                       <h3 className="text-base font-extrabold text-white mt-1">
-                        ইউজারদের কাজ ও অর্ডার থেকে আপনার অ্যাকাউন্টে জমা হওয়া টাকা এবং ইউজার পেমেন্ট কন্ট্রোল
+                        ভেরিফায়েড ইনভেস্টমেন্ট, মেম্বারশিপ ও সম্পন্ন অর্ডার থেকে বাস্তব জমা ও পেমেন্ট নিয়ন্ত্রণ
                       </h3>
                       <p className="text-xs text-emerald-100/90">
-                        ইউজাররা ৬টি বিভাগের যেকোনো কাজ বা অর্ডার জমা দিলেই মূল টাকা এখানে আপনার <strong>Admin Account</strong>-এ জমা হয়। এখান থেকে ১-ক্লিকে ইউজারকে তার পারিশ্রমিক দিন, বাকি টাকা আপনার নিট লাভ হিসেবে থাকবে।
+                        এই অ্যাকাউন্টে কোনো ফেক টাকা বা আনভেরিফায়েড কাজের টাকা যুক্ত হয় না। শুধুমাত্র আপনি যে পেমেন্টগুলো যাচাই করে <strong>Approve/Verified</strong> করবেন, সেই বাস্তব টাকা এখানে হিসাব হবে।
                       </p>
                     </div>
                     <button
@@ -743,337 +738,56 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                       onClick={() => setSection('memberships')}
                       className="px-3.5 py-2 rounded-xl bg-[#D4AF37] hover:bg-amber-400 text-slate-950 text-xs font-black shadow cursor-pointer shrink-0"
                     >
-                      👑 প্রিমিয়াম মেম্বারশিপ লিখে পোস্ট করুন →
+                      👑 প্রিমিয়াম মেম্বারশিপ পোস্ট ও যাচাই →
                     </button>
                   </div>
 
-                  {/* 4 Master Account Financial Cards */}
+                  {/* 4 Master Account Financial Cards (100% Real Verified Money) */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="p-3.5 rounded-2xl bg-white/10 border border-amber-300/40">
                       <span className="text-[11px] text-amber-200 font-bold block">
-                        ১. অ্যাডমিন অ্যাকাউন্ট মোট জমা
+                        ১. অ্যাডমিন অ্যাকাউন্টে বাস্তব জমা
                       </span>
                       <p className="text-xl font-black text-[#FDE68A] mt-1 tabular-nums">
                         ৳{totalAdminMasterAccountBdt.toLocaleString('bn-BD')}
                       </p>
                       <span className="text-[10px] text-emerald-200">
-                        কাজের আয়: ৳{workGrossRev.toLocaleString('bn-BD')} + প্যাকেজ/অর্ডার
+                        ভেরিফায়েড প্যাকেজ/ইনভেস্ট: ৳{activePkgAndInvRev.toLocaleString('bn-BD')}
                       </span>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-300/40">
                       <span className="text-[11px] text-emerald-200 font-bold block">
-                        ২. আপনার নিট লাভ (Admin Profit)
+                        ২. বর্তমান নিট স্থিতি (Admin Balance)
                       </span>
                       <p className="text-xl font-black text-emerald-300 mt-1 tabular-nums">
                         ৳{adminNetProfitKeptBdt.toLocaleString('bn-BD')}
                       </p>
                       <span className="text-[10px] text-emerald-100">
-                        ইউজারকে দেওয়ার পর আপনার অ্যাকাউন্টে স্থিতি
+                        ইউজারদের মুনাফা দেওয়ার পর বাস্তব স্থিতি
                       </span>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-amber-500/20 border border-amber-400/40">
                       <span className="text-[11px] text-amber-200 font-bold block">
-                        ৩. ইউজারদের কাজের প্রাপ্য বাকি
+                        ৩. ইউজারদের ওয়ালেটে প্রদত্ত মুনাফা
                       </span>
                       <p className="text-xl font-black text-white mt-1 tabular-nums">
-                        ৳{workPendingToUsers.toLocaleString('bn-BD')}
+                        ৳{totalPaidInvestmentProfit.toLocaleString('bn-BD')}
                       </p>
                       <span className="text-[10px] text-amber-200">
-                        {
-                          workSubmissions.filter(
-                            (w) => w.status === 'pending_admin_payout'
-                          ).length
-                        }
-                        টি কাজের পেমেন্ট অপেক্ষমাণ
+                        অ্যাডমিন থেকে ইউজার ওয়ালেটে ট্রান্সফারকৃত
                       </span>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-blue-500/20 border border-blue-300/40">
                       <span className="text-[11px] text-blue-200 font-bold block">
-                        ৪. অ্যাডমিন থেকে ইউজারদের দেওয়া হয়েছে
+                        ৪. অনুমোদিত মোট উত্তোলন (Withdrawn)
                       </span>
                       <p className="text-xl font-black text-blue-200 mt-1 tabular-nums">
-                        ৳{workPaidToUsers.toLocaleString('bn-BD')}
+                        ৳{totalApprovedWithdrawals.toLocaleString('bn-BD')}
                       </p>
                       <span className="text-[10px] text-blue-100">
-                        সরাসরি ইউজার ওয়ালেটে ট্রান্সফারকৃত
+                        বাস্তব ব্যালেন্স থেকে পরিশোধিত উইথড্রয়াল
                       </span>
                     </div>
-                  </div>
-
-                  {/* Submitted User Work Queue -> Pay from Admin Account */}
-                  <div className="p-3.5 rounded-2xl bg-white text-slate-900 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-black text-slate-900">
-                          📋 ইউজারদের জমা দেওয়া কাজ ও অর্ডার তালিকা ({workSubmissions.length}টি)
-                        </h4>
-                        <p className="text-[11px] text-slate-600">
-                          এখানে প্রতিটি কাজ থেকে আপনার অ্যাডমিন অ্যাকাউন্টে কত টাকা জমা হয়েছে এবং ইউজারকে কত টাকা দেবেন তা নিয়ন্ত্রণ করুন
-                        </p>
-                      </div>
-                    </div>
-
-                    {workSubmissions.length === 0 ? (
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                        এখনো কোনো ইউজার নতুন ৬টি বিভাগের কাজ জমা দেয়নি। ইউজার অ্যাপের হোম পেজ থেকে কাজ জমা দিলেই সাথে সাথে এখানে চলে আসবে।
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                        {workSubmissions.map((sub) => {
-                          const customAmt =
-                            customWorkPayoutBdt[sub.id] ?? sub.userPayableBdt;
-                          return (
-                            <div
-                              key={sub.id}
-                              className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2"
-                            >
-                              <div className="flex flex-wrap items-start justify-between gap-2">
-                                <div>
-                                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-[#064E3B] text-[10px] font-extrabold">
-                                    {sub.moduleTitleBn}
-                                  </span>
-                                  <h5 className="text-xs font-black text-slate-900 mt-1">
-                                    {sub.taskTitle}
-                                  </h5>
-                                  <p className="text-[11px] text-slate-600">
-                                    ইউজার: <strong>{sub.userName}</strong> ({sub.userPhone}) • কাজের প্রুফ/তথ্য:{' '}
-                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-bold">
-                                      {sub.proofText}
-                                    </span>
-                                  </p>
-                                </div>
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                    sub.status === 'paid_to_user'
-                                      ? 'bg-emerald-100 text-emerald-800'
-                                      : sub.status === 'rejected'
-                                        ? 'bg-rose-100 text-rose-800'
-                                        : 'bg-amber-100 text-amber-900'
-                                  }`}
-                                >
-                                  {sub.status === 'paid_to_user'
-                                    ? '✅ ইউজারকে টাকা দেওয়া হয়েছে'
-                                    : sub.status === 'rejected'
-                                      ? '❌ বাতিলকৃত'
-                                      : '⏳ পেমেন্টের অপেক্ষায়'}
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-2 text-center">
-                                <div className="p-1.5 rounded-lg bg-white border border-slate-200">
-                                  <span className="text-[9px] text-slate-500 block">
-                                    অ্যাডমিন অ্যাকাউন্টে জমা
-                                  </span>
-                                  <span className="text-xs font-black text-slate-900">
-                                    +৳{sub.adminGrossRevenueBdt.toLocaleString('bn-BD')}
-                                  </span>
-                                </div>
-                                <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-300">
-                                  <span className="text-[9px] text-amber-900 font-bold block">
-                                    ইউজারের নির্ধারিত প্রাপ্য
-                                  </span>
-                                  <span className="text-xs font-black text-[#064E3B]">
-                                    ৳{sub.userPayableBdt.toLocaleString('bn-BD')}
-                                  </span>
-                                </div>
-                                <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
-                                  <span className="text-[9px] text-emerald-800 font-bold block">
-                                    অ্যাডমিনের নিট লাভ থাকবে
-                                  </span>
-                                  <span className="text-xs font-black text-emerald-800">
-                                    +৳{Math.max(0, sub.adminGrossRevenueBdt - customAmt).toLocaleString('bn-BD')}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {onManageWorkSubmission &&
-                                sub.status !== 'rejected' && (
-                                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/70">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[10px] font-bold text-slate-700">
-                                        ইউজারকে কত টাকা দেবেন:
-                                      </span>
-                                      <input
-                                        type="number"
-                                        value={customAmt}
-                                        onChange={(e) =>
-                                          setCustomWorkPayoutBdt((prev) => ({
-                                            ...prev,
-                                            [sub.id]:
-                                              Number(e.target.value) || 0,
-                                          }))
-                                        }
-                                        className="w-20 h-7 px-2 rounded-lg border border-emerald-400 bg-white text-xs font-black text-slate-900"
-                                      />
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          onManageWorkSubmission(
-                                            sub.id,
-                                            'pay_user',
-                                            customAmt
-                                          )
-                                        }
-                                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#F59E0B] text-slate-950 text-[11px] font-black shadow cursor-pointer"
-                                      >
-                                        💸 অ্যাডমিন অ্যাকাউন্ট থেকে ইউজারকে ৳
-                                        {customAmt.toLocaleString('bn-BD')} দিন
-                                      </button>
-                                      {sub.status === 'pending_admin_payout' && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            onManageWorkSubmission(
-                                              sub.id,
-                                              'reject'
-                                            )
-                                          }
-                                          className="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold cursor-pointer"
-                                        >
-                                          বাতিল
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Quick Add New Work Item Across the 6 Modules */}
-                    {onSaveWorkCatalog && (
-                      <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-2.5 pt-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-extrabold text-[#064E3B]">
-                            ➕ ৬টি বিভাগে নতুন কাজ যুক্ত করুন (অ্যাডমিন আয় ও ইউজার পারিশ্রমিক নির্ধারণ)
-                          </span>
-                          {workCatalogSavedMsg && (
-                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-extrabold">
-                              ✓ {workCatalogSavedMsg}
-                            </span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                          <select
-                            value={newWorkModule}
-                            onChange={(e) =>
-                              setNewWorkModule(
-                                e.target.value as ProfitModuleType
-                              )
-                            }
-                            className="h-8 px-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900"
-                          >
-                            <option value="micro_task">
-                              ১. মাইক্রো-টাস্ক ও অ্যাড
-                            </option>
-                            <option value="dropship_resell">
-                              ২. ড্রপশিপিং রিসেলিং
-                            </option>
-                            <option value="telecom_drive">
-                              ৩. টেলিকম ড্রাইভ প্যাক
-                            </option>
-                            <option value="vip_package">
-                              ৪. ভিআইপি টিম কমিশন
-                            </option>
-                            <option value="skill_course">
-                              ৫. স্কিল ও অ্যাসাইনমেন্ট
-                            </option>
-                            <option value="seller_boost">
-                              ৬. সেলার বুস্ট ও এস্ক্রো
-                            </option>
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="কাজের নাম লিখুন..."
-                            value={newWorkTitle}
-                            onChange={(e) => setNewWorkTitle(e.target.value)}
-                            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 sm:col-span-2"
-                          />
-                          <input
-                            type="number"
-                            placeholder="অ্যাডমিন মোট আয় (৳)"
-                            value={newWorkAdminRev}
-                            onChange={(e) =>
-                              setNewWorkAdminRev(Number(e.target.value) || 0)
-                            }
-                            className="h-8 px-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900"
-                          />
-                          <input
-                            type="number"
-                            placeholder="ইউজার পাবে (৳)"
-                            value={newWorkUserPay}
-                            onChange={(e) =>
-                              setNewWorkUserPay(Number(e.target.value) || 0)
-                            }
-                            className="h-8 px-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900"
-                          />
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            type="text"
-                            placeholder="কাজের বিবরণ ও নিয়ম লিখুন..."
-                            value={newWorkDesc}
-                            onChange={(e) => setNewWorkDesc(e.target.value)}
-                            className="flex-1 h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!newWorkTitle.trim()) return;
-                              const moduleLabels: Record<
-                                ProfitModuleType,
-                                string
-                              > = {
-                                micro_task: '১. মাইক্রো-টাস্ক ও অ্যাড প্রমোশন',
-                                dropship_resell: '২. ড্রপশিপিং ও রিসেলিং হাব',
-                                telecom_drive: '৩. টেলিকম ড্রাইভ প্যাক ও রিচার্জ',
-                                vip_package: '৪. ভিআইপি লেভেল ও টিম কমিশন',
-                                skill_course: '৫. বিজনেস কোর্স ও স্কিল রুম',
-                                seller_boost:
-                                  '৬. মার্কেটপ্লেস সেলার বুস্ট ও এস্ক্রো',
-                              };
-                              const gross = Math.max(1, newWorkAdminRev);
-                              const userShare = Math.max(1, newWorkUserPay);
-                              const netAdmin = Math.max(0, gross - userShare);
-                              const item: ProfitableWorkItem = {
-                                id: 'work-custom-' + Date.now(),
-                                moduleType: newWorkModule,
-                                moduleTitleBn: moduleLabels[newWorkModule],
-                                title: newWorkTitle.trim(),
-                                description:
-                                  newWorkDesc.trim() ||
-                                  'নির্দেশনা অনুযায়ী কাজ সম্পন্ন করে প্রুফ জমা দিন।',
-                                actionInstructions: `কাজটি সম্পন্ন করে প্রুফ জমা দিন। অ্যাডমিন অ্যাকাউন্টে ৳${gross} জমা হবে এবং সেখান থেকে আপনি পাবেন ৳${userShare}।`,
-                                totalRevenueToAdminBdt: gross,
-                                userPayoutBdt: userShare,
-                                adminNetProfitBdt: netAdmin,
-                                proofPlaceholder:
-                                  'কাজের প্রুফ / রেফারেন্স / মোবাইল নম্বর লিখুন...',
-                                badge: `ইউজার পাবেন +৳${userShare} • অ্যাডমিন লাভ +৳${netAdmin}`,
-                              };
-                              onSaveWorkCatalog([item, ...workCatalog]);
-                              setNewWorkTitle('');
-                              setNewWorkDesc('');
-                              setWorkCatalogSavedMsg(
-                                'নতুন কাজ ইউজার অ্যাপে লাইভ যুক্ত হয়েছে!'
-                              );
-                            }}
-                            className="px-4 h-8 rounded-lg bg-[#064E3B] text-white text-xs font-extrabold cursor-pointer"
-                          >
-                            + কাজ যুক্ত করুন (অ্যাডমিন লাভ: ৳
-                            {Math.max(
-                              0,
-                              newWorkAdminRev - newWorkUserPay
-                            ).toLocaleString('bn-BD')}
-                            )
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -2027,44 +1741,74 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
               ) : (
                 withdrawals
                   .filter((w) => w.status === wTab)
-                  .map((w) => (
-                    <div
-                      key={w.id}
-                      className="p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-slate-900">
-                          {w.userName} — <span className="text-emerald-700 tabular-nums">৳{w.amountBdt}</span>
-                        </p>
-                        <p className="text-slate-600 tabular-nums">
-                          মাধ্যম: {w.method} · অ্যাকাউন্ট: {w.accountNumber} · {w.createdAt}
-                        </p>
-                        {w.rejectionReason && (
-                          <p className="text-red-600">প্রত্যাখ্যানের কারণ: {w.rejectionReason}</p>
+                  .map((w) => {
+                    const wUser = users.find((u) => u.uid === w.userId);
+                    const userRealBal = Math.max(
+                      0,
+                      Number(wUser?.walletBalance) || 0
+                    );
+                    const hasEnoughBal =
+                      userRealBal >= 100 && userRealBal >= w.amountBdt;
+                    return (
+                      <div
+                        key={w.id}
+                        className="p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-slate-900">
+                            {w.userName} —{' '}
+                            <span className="text-emerald-700 tabular-nums">
+                              উত্তোলন রিকোয়েস্ট: ৳{w.amountBdt}
+                            </span>{' '}
+                            •{' '}
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                                hasEnoughBal
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              ইউজারের বর্তমান বাস্তব ব্যালেন্স: ৳{userRealBal}
+                            </span>
+                          </p>
+                          <p className="text-slate-600 tabular-nums">
+                            মাধ্যম: {w.method} · অ্যাকাউন্ট: {w.accountNumber} · {w.createdAt}
+                          </p>
+                          {!hasEnoughBal && w.status === 'pending' && (
+                            <p className="text-rose-600 font-bold">
+                              ⚠️ ইউজারের অ্যাকাউন্টে পর্যাপ্ত বাস্তব টাকা নেই (৳{userRealBal})। এই রিকোয়েস্ট অনুমোদন করা যাবে না।
+                            </p>
+                          )}
+                          {w.rejectionReason && (
+                            <p className="text-red-600">
+                              প্রত্যাখ্যানের কারণ: {w.rejectionReason}
+                            </p>
+                          )}
+                        </div>
+                        {w.status === 'pending' && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={!hasEnoughBal}
+                              onClick={() => onProcessWithdrawal(w.id, 'approved')}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white font-semibold flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRejectingId(w.id)}
+                              className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Reject</span>
+                            </button>
+                          </div>
                         )}
                       </div>
-                      {w.status === 'pending' && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => onProcessWithdrawal(w.id, 'approved')}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white font-semibold flex items-center gap-1"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRejectingId(w.id)}
-                            className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold flex items-center gap-1"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>Reject</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
               )}
             </div>
           </div>
@@ -2081,9 +1825,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                 </p>
               </div>
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80">
-                <span className="text-slate-500">মোট রেফারেল রিওয়ার্ড (Rewards)</span>
+                <span className="text-slate-500">পরিশোধিত রেফারেল বোনাস (Paid Rewards)</span>
                 <p className="text-2xl font-bold text-amber-700 tabular-nums mt-1">
-                  ৳{(totalReferralsCount * 50).toLocaleString('bn-BD')}
+                  ৳
+                  {auditLogs
+                    .filter((l) => l.type === 'referral' && l.amountBdt > 0)
+                    .reduce((s, l) => s + l.amountBdt, 0)
+                    .toLocaleString('bn-BD')}
                 </p>
               </div>
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80">
@@ -2129,10 +1877,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                         </div>
                         <div className="text-right tabular-nums">
                           <p className="font-bold text-emerald-700">
-                            {u.referralCount} সফল রেফারেল
+                            {u.referralCount} রেফারেল
                           </p>
                           <p className="text-amber-700 font-semibold">
-                            রিওয়ার্ড: ৳{u.referralCount * 50} + {u.referralCount * 25} Pts
+                            বর্তমান ওয়ালেট: ৳{Math.max(0, Number(u.walletBalance) || 0).toLocaleString('bn-BD')}
                           </p>
                         </div>
                       </div>

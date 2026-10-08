@@ -391,7 +391,9 @@ service cloud.firestore {
         && incoming().status == 'pending'
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.walletBalance >= 100
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.walletBalance >= incoming().amountBdt;
       allow update: if isSignedIn()
         && isValidId(withdrawalId)
         && isValidWithdrawalRequest(incoming())
@@ -411,7 +413,11 @@ service cloud.firestore {
             isAdmin()
             && existing().status == 'pending'
             && (
-              (incoming().status == 'approved' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+              (
+                incoming().status == 'approved'
+                && get(/databases/$(database)/documents/users/$(existing().userId)).data.walletBalance >= existing().amountBdt
+                && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+              )
               || (incoming().status == 'rejected' && 'rejectionReason' in incoming() && incoming().rejectionReason.size() >= 3 && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rejectionReason', 'updatedAt']))
             )
           )
