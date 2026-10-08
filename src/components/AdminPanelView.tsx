@@ -3851,14 +3851,26 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                   <div>• Play Store AAB: ./gradlew :user-app:bundleRelease</div>
                   <div>• Production APK: ./gradlew :user-app:assembleRelease</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadUserAppBundle}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>ইউজার অ্যাপ ZIP ফাইল ডাউনলোড (Alpo_Pujir_Bebsha_User_App.zip)</span>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      triggerReliableDownload('user-html')
+                    }
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#044E36] hover:bg-[#033d2a] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Users HopWeb HTML ডাউনলোড (.html)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadUserAppBundle}
+                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-950 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Users অ্যাপ ZIP ডাউনলোড (.zip)</span>
+                  </button>
+                </div>
               </div>
 
               {/* 2. ADMIN APP BUILD CARD */}
@@ -3882,14 +3894,26 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = ({
                   <div>• Private Admin APK: ./gradlew :admin-app:assembleRelease</div>
                   <div>• Private Admin AAB: ./gradlew :admin-app:bundleRelease</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadAdminAppBundle}
-                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>অ্যাডমিন অ্যাপ ZIP ফাইল ডাউনলোড (Alpo_Pujir_Bebsha_Admin_App.zip)</span>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      triggerReliableDownload('admin-html')
+                    }
+                    className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Admin HopWeb HTML ডাউনলোড (.html)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadAdminAppBundle}
+                    className="w-full py-2.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Admin অ্যাপ ZIP ডাউনলোড (.zip)</span>
+                  </button>
+                </div>
               </div>
             </div>
 

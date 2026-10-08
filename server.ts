@@ -13,13 +13,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function getTargetBuildDir(target: 'user' | 'admin'): string {
-  const distDir = path.join(__dirname, 'dist', target);
-  if (fs.existsSync(path.join(distDir, 'assets'))) {
-    return distDir;
-  }
   const persistentDir = path.join(__dirname, 'build_output', target);
   if (fs.existsSync(path.join(persistentDir, 'assets'))) {
     return persistentDir;
+  }
+  const distDir = path.join(__dirname, 'dist', target);
+  if (fs.existsSync(path.join(distDir, 'assets'))) {
+    return distDir;
   }
   try {
     const cfgFile =
@@ -31,7 +31,9 @@ function getTargetBuildDir(target: 'user' | 'admin'): string {
   } catch (err) {
     console.error(`Auto-build failed for ${target}:`, err);
   }
-  return fs.existsSync(path.join(distDir, 'assets')) ? distDir : persistentDir;
+  return fs.existsSync(path.join(persistentDir, 'assets'))
+    ? persistentDir
+    : distDir;
 }
 
 const ANDROID_FILE_VIEWER_POLYFILL = `<script>
@@ -255,19 +257,19 @@ function buildSelfContainedHtml(target: 'user' | 'admin'): string | null {
   );
   html = html.replace(/<link[^>]*href="\/assets\/[^"]+"[^>]*>/g, '');
 
-  const cssBase64 = Buffer.from(cssContent, 'utf-8').toString('base64');
-  const jsBase64 = Buffer.from(jsContent, 'utf-8').toString('base64');
+  const safeCss = cssContent.replace(/<\/style/gi, '<\\/style');
+  const safeJs = jsContent.replace(/<\/script/gi, '<\\/script');
 
   html = html.replace(
     '</head>',
     () =>
-      `${ANDROID_FILE_VIEWER_POLYFILL}\n<link rel="stylesheet" href="data:text/css;base64,${cssBase64}" />\n</head>`
+      `${ANDROID_FILE_VIEWER_POLYFILL}\n<style>${safeCss}</style>\n</head>`
   );
 
-  if (jsContent) {
+  if (safeJs) {
     html = html.replace(
       '</body>',
-      () => `<script defer src="data:text/javascript;base64,${jsBase64}"></script>\n</body>`
+      () => `<script>${safeJs}</script>\n</body>`
     );
   }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import UserApp from './UserApp';
 import AdminApp from './AdminApp';
+import { preloadAllDownloadBundles } from './utils/downloadAppBundle';
 
 type RouteMode = 'user' | 'admin';
 
@@ -34,6 +35,12 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (!buildTarget) {
+      preloadAllDownloadBundles();
+    }
+  }, [buildTarget]);
+
+  useEffect(() => {
     const onHashChange = () => {
       if (!buildTarget) {
         setPreviewTarget(getRouteMode());
@@ -48,12 +55,12 @@ export default function App() {
     return <UserApp />;
   }
 
-  // 2. Dedicated Admin App Production Build (100% Admin Login & Admin Panel only)
+  // 2. Dedicated Admin App Production Build (100% Admin Panel only)
   if (buildTarget === 'admin') {
     return <AdminApp />;
   }
 
-  // 3. Clean routing without any download page or top bar
+  // 3. Clean routing without any top bar
   if (previewTarget === 'admin') {
     return (
       <AdminApp

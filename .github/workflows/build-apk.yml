@@ -17,6 +17,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js 20 and build latest User & Admin bundles
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compile fresh User Panel & Admin Panel assets for APK
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          ls -la app/src/main/assets admin-app/src/main/assets
+
       - name: Set up Temurin Java 17
         uses: actions/setup-java@v4
         with:

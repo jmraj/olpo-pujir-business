@@ -9,74 +9,121 @@ export const TARGET_INFO: Record<
     labelBn: string;
   }
 > = {
-  'user-zip': {
-    endpoint: '/api/download/user-zip',
-    filename: 'Alpo_Pujir_Bebsha_User_App.zip',
-    mimeType: 'application/zip',
-    labelBn: 'User App ZIP (Alpo_Pujir_Bebsha_User_App.zip)',
-  },
-  'admin-zip': {
-    endpoint: '/api/download/admin-zip',
-    filename: 'Alpo_Pujir_Bebsha_Admin_App.zip',
-    mimeType: 'application/zip',
-    labelBn: 'Admin App ZIP (Alpo_Pujir_Bebsha_Admin_App.zip)',
-  },
   'user-html': {
     endpoint: '/api/download/user-app',
-    filename: 'Alpo_Pujir_Bebsha_User_App.html',
-    mimeType: 'text/html',
-    labelBn: 'User App HTML (Alpo_Pujir_Bebsha_User_App.html)',
+    filename: 'User_HopWeb_Updated_index.html',
+    mimeType: 'text/html;charset=utf-8',
+    labelBn: 'Users Panel HopWeb HTML (User_HopWeb_Updated_index.html)',
   },
   'admin-html': {
     endpoint: '/api/download/admin-app',
-    filename: 'Alpo_Pujir_Bebsha_Admin_App.html',
-    mimeType: 'text/html',
-    labelBn: 'Admin App HTML (Alpo_Pujir_Bebsha_Admin_App.html)',
+    filename: 'Admin_HopWeb_Updated_index.html',
+    mimeType: 'text/html;charset=utf-8',
+    labelBn: 'Admin Panel HopWeb HTML (Admin_HopWeb_Updated_index.html)',
+  },
+  'user-zip': {
+    endpoint: '/api/download/user-zip',
+    filename: 'Alpo_Pujir_Bebsha_User_Updated.zip',
+    mimeType: 'application/zip',
+    labelBn: 'Users Panel Updated ZIP (Alpo_Pujir_Bebsha_User_Updated.zip)',
+  },
+  'admin-zip': {
+    endpoint: '/api/download/admin-zip',
+    filename: 'Alpo_Pujir_Bebsha_Admin_Updated.zip',
+    mimeType: 'application/zip',
+    labelBn: 'Admin Panel Updated ZIP (Alpo_Pujir_Bebsha_Admin_Updated.zip)',
   },
 };
 
-// Pre-loaded File & Blob URL cache so clicks are 100% synchronous (never loses user gesture!)
 const preloadedFiles: Partial<Record<DownloadTarget, File>> = {};
 const preloadedBlobUrls: Partial<Record<DownloadTarget, string>> = {};
+const preloadedHtmlText: Partial<Record<'user-html' | 'admin-html', string>> = {};
 let preloadStarted = false;
+const readyListeners: Array<() => void> = [];
 
 export function preloadAllDownloadBundles(onReady?: () => void): void {
-  if (typeof window === 'undefined' || preloadStarted) return;
+  if (typeof window === 'undefined') return;
+  if (onReady) {
+    readyListeners.push(onReady);
+  }
+  if (preloadStarted) {
+    if (Object.keys(preloadedBlobUrls).length > 0 && onReady) {
+      onReady();
+    }
+    return;
+  }
   preloadStarted = true;
 
   const targets: DownloadTarget[] = [
-    'user-zip',
-    'admin-zip',
     'user-html',
     'admin-html',
+    'user-zip',
+    'admin-zip',
   ];
+
+  const cacheBuster = Date.now();
 
   Promise.all(
     targets.map(async (t) => {
       try {
         const info = TARGET_INFO[t];
-        const res = await fetch(info.endpoint, { credentials: 'include' });
+        const res = await fetch(`${info.endpoint}?v=${cacheBuster}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
         if (!res.ok) return;
         const buf = await res.arrayBuffer();
-        const blob = new Blob([buf], { type: info.mimeType });
-        preloadedBlobUrls[t] = URL.createObjectURL(blob);
+        if (t === 'user-html' || t === 'admin-html') {
+          try {
+            preloadedHtmlText[t] = new TextDecoder('utf-8').decode(buf);
+          } catch {}
+        }
+        // Use application/octet-stream for blob URL so mobile browsers always download instead of previewing
+        const dlBlob = new Blob([buf], { type: 'application/octet-stream' });
+        preloadedBlobUrls[t] = URL.createObjectURL(dlBlob);
         preloadedFiles[t] = new File([buf], info.filename, {
           type: info.mimeType,
         });
+        readyListeners.forEach((cb) => {
+          try {
+            cb();
+          } catch {}
+        });
       } catch {}
     })
-  ).then(() => {
-    if (onReady) onReady();
-  });
+  );
 }
 
 export function getPreloadedBlobUrl(target: DownloadTarget): string | undefined {
   return preloadedBlobUrls[target];
 }
 
-/**
- * Synchronously triggers download or native Android share without losing user activation!
- */
+export async function copyHopWebHtmlCode(
+  target: 'user-html' | 'admin-html',
+  onStatus?: (msg: string) => void
+): Promise<boolean> {
+  const notify = onStatus || (() => {});
+  try {
+    let text = preloadedHtmlText[target];
+    if (!text) {
+      const res = await fetch(`${TARGET_INFO[target].endpoint}?v=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      text = await res.text();
+      preloadedHtmlText[target] = text;
+    }
+    await navigator.clipboard.writeText(text);
+    notify(
+      `✅ ${target === 'user-html' ? 'Users Panel' : 'Admin Panel'} এর সম্পূর্ণ HopWeb HTML কোড কপি হয়েছে! এখন HopWeb অ্যাপের index.html এ Paste করুন।`
+    );
+    return true;
+  } catch {
+    notify('⚠️ কপি করতে সমস্যা হয়েছে, সরাসরি ডাউনলোড বাটনে চাপুন।');
+    return false;
+  }
+}
+
 export function triggerReliableDownload(
   target: DownloadTarget,
   options?: {
@@ -86,8 +133,9 @@ export function triggerReliableDownload(
 ): void {
   const info = TARGET_INFO[target];
   const notify = options?.onStatus || (() => {});
+  const ts = Date.now();
 
-  // 1. Synchronous Native Android Share / Save to Phone (must run BEFORE any await!)
+  // 1. Synchronous Native Android Share / Save to Phone (0ms delay so user gesture is preserved)
   if (options?.preferShare) {
     const readyFile = preloadedFiles[target];
     const nav = navigator as Navigator & {
@@ -112,7 +160,7 @@ export function triggerReliableDownload(
     }
   }
 
-  // 2. Synchronous Preloaded Blob URL click (0ms delay = keeps 100% user gesture)
+  // 2. Synchronous Preloaded Blob URL click (exactly how earlier working downloads succeeded)
   const readyBlobUrl = preloadedBlobUrls[target];
   if (readyBlobUrl) {
     const a = document.createElement('a');
@@ -121,35 +169,35 @@ export function triggerReliableDownload(
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    notify(`✅ আপডেটেড ${info.filename} ডাউনলোড শুরু হয়েছে!`);
+    return;
   }
 
-  // 3. Synchronous Direct HTTP Attachment Anchor + Hidden Iframe (for Android DownloadManager)
-  try {
-    const iframeId = `__dl_frame_${target}`;
-    const existing = document.getElementById(iframeId);
-    if (existing) existing.remove();
-    const iframe = document.createElement('iframe');
-    iframe.id = iframeId;
-    iframe.style.display = 'none';
-    iframe.src = `${info.endpoint}?dl=1&t=${Date.now()}`;
-    document.body.appendChild(iframe);
-  } catch {}
-
-  if (!readyBlobUrl) {
-    const a = document.createElement('a');
-    a.href = `${info.endpoint}?dl=1`;
-    a.download = info.filename;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-
-  notify(`✅ ${info.filename} ডাউনলোড শুরু হয়েছে!`);
+  // 3. Fallback if clicked before preload finishes: fetch blob and trigger download
+  notify(`⏳ ${info.filename} প্রস্তুত হচ্ছে...`);
+  fetch(`${info.endpoint}?dl=1&v=${ts}`, {
+    credentials: 'include',
+    cache: 'no-store',
+  })
+    .then((res) => res.arrayBuffer())
+    .then((buf) => {
+      const dlBlob = new Blob([buf], { type: 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(dlBlob);
+      preloadedBlobUrls[target] = blobUrl;
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = info.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      notify(`✅ আপডেটেড ${info.filename} ডাউনলোড সম্পন্ন!`);
+    })
+    .catch(() => {
+      window.location.href = `${info.endpoint}?dl=1&v=${ts}`;
+    });
 }
 
-export function getChromeIntentUrl(path = '/#download'): string {
+export function getChromeIntentUrl(path = '/download'): string {
   if (typeof window === 'undefined') return path;
   const host = window.location.host;
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
